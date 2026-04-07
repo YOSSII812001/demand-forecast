@@ -47,11 +47,26 @@ def geocode(location: str) -> Optional[dict]:
     candidates = [loc]
 
     # 都道府県を除去
-    stripped = re.sub(
-        r"^(北海道|東京都|大阪府|京都府|.{2,3}県)", "", loc
-    ).strip()
-    if stripped and stripped != loc:
-        candidates.append(stripped)
+    # 特殊な都道府県名→県庁所在地マッピング
+    PREF_TO_CAPITAL = {
+        "北海道": "札幌市",
+        "東京都": "東京",
+        "大阪府": "大阪市",
+        "京都府": "京都市",
+    }
+
+    pref_match = re.match(r"^(北海道|東京都|大阪府|京都府|(.{2,3})県)(.*)", loc)
+    if pref_match:
+        full_pref = pref_match.group(1)
+        remainder = pref_match.group(3).strip() if pref_match.group(3) else ""
+        pref_name = pref_match.group(2) or full_pref
+
+        if remainder:
+            candidates.append(remainder)
+        elif full_pref in PREF_TO_CAPITAL:
+            candidates.append(PREF_TO_CAPITAL[full_pref])
+        else:
+            candidates.append(f"{pref_name}市")
 
     # 市区町村サフィックスを除去
     for suffix in ["市", "町", "村", "区", "郡"]:
