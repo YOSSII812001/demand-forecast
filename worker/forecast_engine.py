@@ -12,6 +12,7 @@ import timesfm
 
 from config import TIMESFM_MODEL, MAX_CONTEXT, MAX_HORIZON
 from jp_holidays import generate_covariates_typed
+from weather import get_weather_covariates
 
 
 class ForecastEngine:
@@ -51,6 +52,8 @@ class ForecastEngine:
         frequency: str = "daily",
         start_date: str | None = None,
         history_start_date: str | None = None,
+        latitude: float = 36.6219,
+        longitude: float = 138.5960,
     ) -> dict:
         """
         時系列データの予測を実行（共変量あり/なし自動切替）
@@ -71,7 +74,21 @@ class ForecastEngine:
                     history_days=history_len if history_start_date else 0,
                 )
 
-                print(f"  共変量: {covariates['num_features']}特徴量 x {covariates['total_days']}日")
+                # 天気データを取得して数値共変量に追加
+                if history_start_date and start_date:
+                    weather_covs = get_weather_covariates(
+                        history_start=history_start_date,
+                        history_end=start_date,
+                        forecast_start=start_date,
+                        forecast_days=horizon,
+                        latitude=latitude,
+                        longitude=longitude,
+                    )
+                    covariates["dynamic_numerical"].update(weather_covs)
+
+                num_numerical = len(covariates["dynamic_numerical"])
+                num_categorical = len(covariates["dynamic_categorical"])
+                print(f"  共変量: 数値{num_numerical} + カテゴリ{num_categorical} = {num_numerical + num_categorical}特徴量")
                 print(f"    数値: {list(covariates['dynamic_numerical'].keys())}")
                 print(f"    カテゴリ: {list(covariates['dynamic_categorical'].keys())}")
 
