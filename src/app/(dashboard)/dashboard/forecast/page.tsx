@@ -26,8 +26,13 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ForecastChart } from "@/components/charts/forecast-chart";
-import { TrendingUp, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { ForecastCalendar } from "@/components/charts/forecast-calendar";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale";
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3 } from "lucide-react";
 
 const STATUS_CONFIG: Record<
   string,
@@ -42,6 +47,9 @@ const STATUS_CONFIG: Record<
 export default function ForecastPage() {
   const [metricType, setMetricType] = useState<MetricType>("occupancy_rate");
   const [horizon, setHorizon] = useState(30);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const [viewMode, setViewMode] = useState<"chart" | "calendar">("chart");
   const [submitting, setSubmitting] = useState(false);
   const [jobs, setJobs] = useState<ForecastJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<ForecastJob | null>(null);
@@ -215,6 +223,32 @@ export default function ForecastPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
+                  <Label>予測起点日</Label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCalendarPicker(!showCalendarPicker)}
+                      className="flex items-center gap-2 h-8 px-3 rounded-lg border border-input bg-background text-sm hover:bg-muted transition-colors"
+                    >
+                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                      {format(startDate, "yyyy/MM/dd", { locale: ja })}
+                    </button>
+                    {showCalendarPicker && (
+                      <div className="absolute top-10 left-0 z-50 bg-card border border-washi rounded-xl shadow-lg p-2">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={(date) => {
+                            if (date) setStartDate(date);
+                            setShowCalendarPicker(false);
+                          }}
+                          locale={ja}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label>予測日数</Label>
                   <Input
                     type="number"
@@ -270,10 +304,30 @@ export default function ForecastPage() {
                   </div>
                 )}
                 {selectedJob.status === "completed" && results.length > 0 && (
-                  <ForecastChart
-                    data={results}
-                    metricType={selectedJob.metric_type as MetricType}
-                  />
+                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "chart" | "calendar")}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="chart">
+                        <BarChart3 className="h-3.5 w-3.5 mr-1" />
+                        チャート
+                      </TabsTrigger>
+                      <TabsTrigger value="calendar">
+                        <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                        カレンダー
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="chart">
+                      <ForecastChart
+                        data={results}
+                        metricType={selectedJob.metric_type as MetricType}
+                      />
+                    </TabsContent>
+                    <TabsContent value="calendar">
+                      <ForecastCalendar
+                        data={results}
+                        metricType={selectedJob.metric_type as MetricType}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 )}
               </CardContent>
             </Card>
