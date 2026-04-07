@@ -168,22 +168,120 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {/* サンプルCSV形式 */}
+      {/* CSVの作り方ガイド */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">対応するCSV形式</CardTitle>
+          <CardTitle className="text-base">CSVファイルの作り方</CardTitle>
+          <CardDescription>
+            Excelやスプレッドシートで以下の表を作成し、CSV形式で保存してください
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto">
-            {`date,occupancy_rate,guest_count,revenue
-2025-10-01,72,43,1280000
-2025-10-02,85,51,1650000
-2025-10-03,65,39,1100000`}
-          </pre>
-          <p className="text-xs text-muted-foreground mt-2">
-            列名: date（日付）, occupancy_rate（稼働率）, guest_count（宿泊客数）,
-            revenue（売上）, bookings（予約件数）。日本語列名も対応。
-          </p>
+        <CardContent className="space-y-4">
+          {/* 表形式の例 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-muted/60">
+                  <th className="border border-washi px-3 py-2 text-left font-semibold">
+                    日付
+                  </th>
+                  <th className="border border-washi px-3 py-2 text-right font-semibold">
+                    稼働率（%）
+                  </th>
+                  <th className="border border-washi px-3 py-2 text-right font-semibold">
+                    宿泊客数（人）
+                  </th>
+                  <th className="border border-washi px-3 py-2 text-right font-semibold">
+                    売上（円）
+                  </th>
+                  <th className="border border-washi px-3 py-2 text-right font-semibold">
+                    予約件数
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["2025-10-01", "72", "43", "1,280,000", "12"],
+                  ["2025-10-02", "85", "51", "1,650,000", "15"],
+                  ["2025-10-03", "65", "39", "1,100,000", "10"],
+                  ["...", "...", "...", "...", "..."],
+                ].map((row, i) => (
+                  <tr key={i} className={i % 2 === 0 ? "" : "bg-muted/20"}>
+                    {row.map((cell, j) => (
+                      <td
+                        key={j}
+                        className={`border border-washi/50 px-3 py-1.5 ${
+                          j === 0 ? "text-left" : "text-right"
+                        } ${cell === "..." ? "text-center text-muted-foreground" : ""}`}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 列の説明 */}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground">
+                必須の列
+              </p>
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2 text-xs">
+                  <Badge variant="default" className="shrink-0 text-[10px]">必須</Badge>
+                  <div>
+                    <span className="font-medium">日付</span>
+                    <span className="text-muted-foreground"> — 「2025-10-01」形式（年-月-日）</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-xs">
+                  <Badge variant="default" className="shrink-0 text-[10px]">必須</Badge>
+                  <div>
+                    <span className="font-medium">予測したい数値</span>
+                    <span className="text-muted-foreground"> — 以下から1つ以上</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground">
+                使える列名（どちらでもOK）
+              </p>
+              <div className="space-y-1 text-xs">
+                {[
+                  { ja: "日付", en: "date" },
+                  { ja: "稼働率", en: "occupancy_rate" },
+                  { ja: "宿泊客数 / 宿泊者数", en: "guest_count" },
+                  { ja: "売上 / 売上高", en: "revenue" },
+                  { ja: "予約件数 / 予約数", en: "bookings" },
+                ].map((col) => (
+                  <div key={col.en} className="flex items-center gap-2">
+                    <code className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">
+                      {col.ja}
+                    </code>
+                    <span className="text-muted-foreground">または</span>
+                    <code className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">
+                      {col.en}
+                    </code>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ヒント */}
+          <div className="p-3 rounded-lg bg-copper/5 border border-copper/10 text-xs space-y-1">
+            <p className="font-semibold text-copper">ヒント</p>
+            <ul className="text-muted-foreground space-y-0.5">
+              <li>- 全ての列を埋める必要はありません。稼働率だけ、売上だけでもOK</li>
+              <li>- データは30日分以上あると予測精度が上がります（理想は1〜2年分）</li>
+              <li>- 祝日・連休の情報はシステムが自動で補完するため、入力不要です</li>
+              <li>- Excelの場合: 「名前を付けて保存」→「CSV（コンマ区切り）」を選択</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
 
