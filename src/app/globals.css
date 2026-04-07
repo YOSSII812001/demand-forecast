@@ -57,9 +57,9 @@
 :root {
   --background: #f7f4ed;
   --foreground: #1c1c1c;
-  --card: #ffffff;
+  --card: #f7f4ed;
   --card-foreground: #1c1c1c;
-  --popover: #ffffff;
+  --popover: #f7f4ed;
   --popover-foreground: #1c1c1c;
   --primary: #b87333;
   --primary-foreground: #ffffff;
@@ -67,19 +67,19 @@
   --secondary-foreground: #1c1c1c;
   --muted: rgba(28, 28, 28, 0.03);
   --muted-foreground: #5f5f5d;
-  --accent: #f0ede5;
+  --accent: rgba(28, 28, 28, 0.04);
   --accent-foreground: #1c1c1c;
   --destructive: #dc2626;
   --border: #eceae4;
   --input: #eceae4;
-  --ring: rgba(184, 115, 51, 0.4);
+  --ring: rgba(59, 130, 246, 0.5);
   /* チャートカラー（温泉・自然テーマ） */
   --chart-1: #b87333;
   --chart-2: #6b8e6b;
   --chart-3: #8b7355;
   --chart-4: #5a7d9a;
   --chart-5: #c4956a;
-  --radius: 0.75rem;
+  --radius: 0.375rem;
   /* サイドバー */
   --sidebar: #f0ede5;
   --sidebar-foreground: #1c1c1c;
@@ -100,5 +100,26 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* Lovable Typography: ディスプレイ文字のletter-spacing */
+  h1, .text-5xl, .text-4xl {
+    letter-spacing: -0.04em;
+    font-weight: 600;
+  }
+  h2, .text-3xl, .text-2xl {
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  /* Lovable Active State */
+  button:active:not(:disabled), a:active {
+    opacity: 0.8;
+  }
+
+  /* Lovable Focus */
+  :focus-visible {
+    outline: none;
+    box-shadow: rgba(0,0,0,0.1) 0px 4px 12px;
   }
 }
