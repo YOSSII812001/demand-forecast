@@ -353,6 +353,31 @@ export default function ForecastPage() {
                   </div>
                 )}
                 {selectedJob.status === "completed" && results.length > 0 && (
+                  <>
+                  {/* 考慮データサマリー */}
+                  <div className="mb-4 p-3 rounded-lg bg-muted/40 border border-washi/50">
+                    <p className="text-xs font-semibold text-foreground mb-2">この予測に考慮されたデータ</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: "過去の実績データ", color: "bg-blue-100 text-blue-800" },
+                        { label: "祝日・振替休日", color: "bg-emerald-100 text-emerald-800" },
+                        { label: "GW・お盆・年末年始", color: "bg-emerald-100 text-emerald-800" },
+                        { label: "桜・紅葉シーズン", color: "bg-emerald-100 text-emerald-800" },
+                        { label: "曜日パターン", color: "bg-purple-100 text-purple-800" },
+                        { label: "季節周期", color: "bg-purple-100 text-purple-800" },
+                        { label: "最高/最低気温", color: "bg-sky-100 text-sky-800" },
+                        { label: "降水量", color: "bg-sky-100 text-sky-800" },
+                        { label: "日照時間", color: "bg-sky-100 text-sky-800" },
+                      ].map((tag) => (
+                        <span
+                          key={tag.label}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${tag.color}`}
+                        >
+                          {tag.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                   <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "chart" | "calendar")}>
                     <TabsList className="mb-4">
                       <TabsTrigger value="chart">
@@ -377,6 +402,7 @@ export default function ForecastPage() {
                       />
                     </TabsContent>
                   </Tabs>
+                  </>
                 )}
               </CardContent>
             </Card>
