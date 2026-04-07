@@ -1,21 +1,35 @@
-"""TimesFM推論エンジン"""
+"""TimesFM 2.5 推論エンジン（公式v2 API使用）"""
 
 import numpy as np
 import timesfm
 
-from config import TIMESFM_MODEL, QUANTILES
+from config import TIMESFM_MODEL
 
 
 class ForecastEngine:
-    """TimesFMモデルをロードし、時系列データの予測を実行する"""
+    """TimesFM 2.5モデルをロードし、時系列データの予測を実行する"""
 
     def __init__(self):
         self.model = None
 
     def load_model(self):
-        """モデルをロード（初回のみ、起動時に1回実行）"""
+        """モデルをロード（初回はHugging Faceからダウンロード、2回目以降はキャッシュ）"""
         print(f"TimesFMモデルをロード中: {TIMESFM_MODEL}")
-        self.model = timesfm.TimesFM.from_pretrained(TIMESFM_MODEL)
+
+        # 公式v2 API: from_pretrained + compile
+        self.model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
+            TIMESFM_MODEL
+        )
+        self.model.compile(
+            timesfm.ForecastConfig(
+                max_context=512,
+                max_horizon=128,
+                normalize_inputs=True,
+                use_continuous_quantile_head=True,
+                infer_is_positive=True,
+                per_core_batch_size=1,
+            )
+        )
         print("モデルロード完了")
 
     def forecast(
@@ -26,11 +40,6 @@ class ForecastEngine:
     ) -> dict:
         """
         時系列データの予測を実行
-
-        Args:
-            historical_values: 過去の数値データ（時系列順）
-            horizon: 予測日数
-            frequency: データの頻度 ("daily" or "weekly")
 
         Returns:
             dict: {
@@ -44,27 +53,22 @@ class ForecastEngine:
 
         input_array = np.array(historical_values, dtype=np.float32)
 
-        # TimesFMの周波数マッピング
-        freq_map = {"daily": 1, "weekly": 2}
-        freq = freq_map.get(frequency, 1)
-
         # 予測実行
         point_forecast, quantile_forecast = self.model.forecast(
-            [input_array],
-            freq=[freq],
-            prediction_length=horizon,
-            quantiles=QUANTILES,
+            horizon=horizon,
+            inputs=[input_array],
         )
 
-        # 結果を抽出（バッチサイズ1なので[0]）
-        points = point_forecast[0].tolist()
+        # point_forecast: (1, horizon) → 中央値予測
+        points = point_forecast[0].tolist()[:horizon]
 
-        # quantile_forecastの構造: [batch, quantiles, horizon]
-        q10 = quantile_forecast[0][0].tolist()  # 10%分位
-        q90 = quantile_forecast[0][2].tolist()  # 90%分位
+        # quantile_forecast: (1, horizon, 11) → mean + 10th-90th percentiles
+        # index 0=mean, 1=10th, 2=20th, ..., 5=50th(median), ..., 10=90th
+        q10 = quantile_forecast[0, :horizon, 1].tolist()  # 10th percentile
+        q90 = quantile_forecast[0, :horizon, 9].tolist()   # 90th percentile
 
         return {
-            "point_estimates": points[:horizon],
-            "quantile_10": q10[:horizon],
-            "quantile_90": q90[:horizon],
+            "point_estimates": points,
+            "quantile_10": q10,
+            "quantile_90": q90,
         }

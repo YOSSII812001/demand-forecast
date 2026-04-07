@@ -216,7 +216,7 @@ def process_job(client, engine: ForecastEngine, job: dict):
         {"status": "completed", "completed_at": datetime.utcnow().isoformat()}
     ).eq("id", job_id).execute()
 
-    print(f"  ✓ ジョブ完了: {job_id}")
+    print(f"  [OK] ジョブ完了: {job_id}")
 
 
 def main():
@@ -244,7 +244,7 @@ def main():
                     try:
                         process_job(client, engine, job)
                     except Exception as e:
-                        print(f"  ✗ ジョブエラー ({job['id']}): {e}")
+                        print(f"  [ERR] ジョブエラー ({job['id']}): {e}")
                         traceback.print_exc()
                         client.table("forecast_jobs").update(
                             {
@@ -266,4 +266,8 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
+    # Windows環境でのバッファリング問題回避
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
     main()
