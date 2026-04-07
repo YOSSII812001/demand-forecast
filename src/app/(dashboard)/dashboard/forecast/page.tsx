@@ -32,6 +32,7 @@ import { ForecastChart } from "@/components/charts/forecast-chart";
 import { ForecastCalendar } from "@/components/charts/forecast-calendar";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { AnalysisFactors } from "@/components/methodology/analysis-factors";
 import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck } from "lucide-react";
 
 const STATUS_CONFIG: Record<
@@ -380,6 +381,9 @@ export default function ForecastPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* 分析手法・入力データ */}
+          <AnalysisFactors />
 
           {/* ジョブ履歴 */}
           <Card>

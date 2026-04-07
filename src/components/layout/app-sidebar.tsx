@@ -9,6 +9,7 @@ import {
   Lightbulb,
   Settings,
   Home,
+  FlaskConical,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const navItems = [
   { title: "データ管理", href: "/dashboard/upload", icon: Upload },
   { title: "需要予測", href: "/dashboard/forecast", icon: TrendingUp },
   { title: "インサイト", href: "/dashboard/insights", icon: Lightbulb },
+  { title: "分析手法", href: "/dashboard/methodology", icon: FlaskConical },
   { title: "設定", href: "/dashboard/settings", icon: Settings },
 ];
 
