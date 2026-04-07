@@ -1,0 +1,7 @@
+# TimesFM 需要予測ワーカー
+torch>=2.1.0,<3.0.0
+timesfm>=1.0.0
+supabase>=2.0.0
+python-dotenv>=1.0.0
+numpy>=1.24.0
+pandas>=2.0.0
