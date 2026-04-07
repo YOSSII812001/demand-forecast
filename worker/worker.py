@@ -44,8 +44,16 @@ def fetch_queued_jobs(client):
     return result.data or []
 
 
-def fetch_historical_data(client, ryokan_id: str, metric_type: str) -> list[float]:
-    """旅館の時系列データを日付順で取得"""
+def fetch_historical_data(
+    client, ryokan_id: str, metric_type: str
+) -> tuple[list[float], str | None, str | None]:
+    """旅館の時系列データを日付順で取得（欠損日付の補完付き）
+
+    Returns:
+        (values, start_date, end_date) — 補完済みデータと日付範囲
+    """
+    import pandas as pd
+
     result = (
         client.table("time_series_data")
         .select("date, value")
@@ -55,8 +63,24 @@ def fetch_historical_data(client, ryokan_id: str, metric_type: str) -> list[floa
         .execute()
     )
     if not result.data:
-        return []
-    return [float(row["value"]) for row in result.data]
+        return [], None, None
+
+    df = pd.DataFrame(result.data)
+    df["date"] = pd.to_datetime(df["date"])
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df = df.set_index("date").sort_index()
+
+    # 日次に補完（歯抜けの日付を埋める）
+    df = df.asfreq("D")
+
+    # 欠損値を線形補間 → 先頭/末尾は前方/後方充填
+    df["value"] = df["value"].interpolate(method="linear").ffill().bfill()
+
+    start = df.index[0].strftime("%Y-%m-%d")
+    end = df.index[-1].strftime("%Y-%m-%d")
+    values = df["value"].tolist()
+
+    return values, start, end
 
 
 def save_forecast_results(
@@ -177,41 +201,22 @@ def process_job(client, engine: ForecastEngine, job: dict):
         {"status": "running", "started_at": datetime.utcnow().isoformat()}
     ).eq("id", job_id).execute()
 
-    # 過去データを取得
-    historical = fetch_historical_data(client, job["ryokan_id"], job["metric_type"])
+    # 過去データを取得（欠損日付は線形補間で自動補完）
+    historical, history_start, history_end = fetch_historical_data(
+        client, job["ryokan_id"], job["metric_type"]
+    )
     if len(historical) < 10:
         raise ValueError(f"データ不足: {len(historical)}件（最低10件必要）")
 
-    print(f"  過去データ: {len(historical)}件")
+    print(f"  過去データ: {len(historical)}件（{history_start} - {history_end}、欠損補完済み）")
 
     # 予測起点日: ジョブのstart_dateがあればそれを使い、なければデータの最終日
     if job.get("start_date"):
         last_date = job["start_date"]
         print(f"  予測起点日（UI指定）: {last_date}")
     else:
-        last_date_result = (
-            client.table("time_series_data")
-            .select("date")
-            .eq("ryokan_id", job["ryokan_id"])
-            .eq("metric_type", job["metric_type"])
-            .order("date", desc=True)
-            .limit(1)
-            .execute()
-        )
-        last_date = last_date_result.data[0]["date"] if last_date_result.data else "2025-01-01"
+        last_date = history_end or "2025-01-01"
         print(f"  予測起点日（データ最終日）: {last_date}")
-
-    # 過去データの開始日を取得（共変量生成用）
-    first_date_result = (
-        client.table("time_series_data")
-        .select("date")
-        .eq("ryokan_id", job["ryokan_id"])
-        .eq("metric_type", job["metric_type"])
-        .order("date")
-        .limit(1)
-        .execute()
-    )
-    history_start = first_date_result.data[0]["date"] if first_date_result.data else None
 
     # TimesFM予測実行（祝日・連休の共変量を自動注入）
     forecast = engine.forecast(

@@ -13,5 +13,6 @@ TIMESFM_MODEL = "google/timesfm-2.5-200m-pytorch"
 DEFAULT_HORIZON = 30
 POLL_INTERVAL_SECONDS = 5
 
-# 予測の分位点
-QUANTILES = [0.1, 0.5, 0.9]
+# ForecastConfig最適化パラメータ
+MAX_CONTEXT = 1024      # 2年分(736日)をカバー（デフォルト512では不足）
+MAX_HORIZON = 256       # 90日予測のAR多段デコードを削減（デフォルト128）

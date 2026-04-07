@@ -1,11 +1,12 @@
 """
 日本の祝日・特別期間カレンダー
 
-アプリに組み込み、TimesFMのXReg（共変量）として自動注入する。
-ユーザーのCSVに祝日情報がなくても予測精度を向上させる。
+TimesFMのforecast_with_covariates()用に、
+数値共変量（dynamic_numerical）とカテゴリ共変量（dynamic_categorical）を型分けして生成する。
 """
 
 import datetime
+import math
 from typing import Optional
 
 
@@ -13,7 +14,6 @@ def _get_holidays(year: int) -> dict[datetime.date, str]:
     """指定年の日本の祝日を返す"""
     holidays = {}
 
-    # 固定祝日
     fixed = [
         (1, 1, "元日"),
         (2, 11, "建国記念の日"),
@@ -32,10 +32,9 @@ def _get_holidays(year: int) -> dict[datetime.date, str]:
         except ValueError:
             pass
 
-    # ハッピーマンデー（第N月曜）
-    def nth_monday(year: int, month: int, n: int) -> datetime.date:
-        first = datetime.date(year, month, 1)
-        dow = first.weekday()  # 0=月
+    def nth_monday(y: int, month: int, n: int) -> datetime.date:
+        first = datetime.date(y, month, 1)
+        dow = first.weekday()
         first_monday = first + datetime.timedelta(days=(7 - dow) % 7)
         return first_monday + datetime.timedelta(weeks=n - 1)
 
@@ -44,16 +43,14 @@ def _get_holidays(year: int) -> dict[datetime.date, str]:
     holidays[nth_monday(year, 9, 3)] = "敬老の日"
     holidays[nth_monday(year, 10, 2)] = "スポーツの日"
 
-    # 春分の日・秋分の日（近似計算）
-    spring = 20 if year % 4 == 0 else 20
-    autumn = 23 if year % 4 == 0 else 23
+    spring = 20
+    autumn = 23
     holidays[datetime.date(year, 3, spring)] = "春分の日"
     holidays[datetime.date(year, 9, autumn)] = "秋分の日"
 
-    # 振替休日: 祝日が日曜なら翌月曜
     extra = {}
     for d, name in holidays.items():
-        if d.weekday() == 6:  # 日曜
+        if d.weekday() == 6:
             next_day = d + datetime.timedelta(days=1)
             while next_day in holidays:
                 next_day += datetime.timedelta(days=1)
@@ -63,99 +60,89 @@ def _get_holidays(year: int) -> dict[datetime.date, str]:
     return holidays
 
 
-def get_special_periods(year: int) -> dict[datetime.date, dict]:
-    """特別期間（連休・繁忙期）を返す"""
+def _get_special_periods(year: int) -> dict[datetime.date, dict]:
+    """特別期間を返す"""
     periods = {}
 
-    # 年末年始（12/28〜1/3）
     for d in range(28, 32):
         try:
-            dt = datetime.date(year, 12, d)
-            periods[dt] = {"type": "nenmatsu_nenshi", "label": "年末年始", "boost": 0.4}
+            periods[datetime.date(year, 12, d)] = {"type": "nenmatsu", "boost": 0.4}
         except ValueError:
             pass
     for d in range(1, 4):
-        periods[datetime.date(year, 1, d)] = {"type": "nenmatsu_nenshi", "label": "年末年始", "boost": 0.4}
+        periods[datetime.date(year, 1, d)] = {"type": "nenmatsu", "boost": 0.4}
 
-    # GW（4/28〜5/6）
     for d in range(28, 31):
         try:
-            periods[datetime.date(year, 4, d)] = {"type": "golden_week", "label": "GW", "boost": 0.3}
+            periods[datetime.date(year, 4, d)] = {"type": "gw", "boost": 0.3}
         except ValueError:
             pass
     for d in range(1, 7):
-        periods[datetime.date(year, 5, d)] = {"type": "golden_week", "label": "GW", "boost": 0.3}
+        periods[datetime.date(year, 5, d)] = {"type": "gw", "boost": 0.3}
 
-    # お盆（8/10〜8/16）
     for d in range(10, 17):
-        periods[datetime.date(year, 8, d)] = {"type": "obon", "label": "お盆", "boost": 0.5}
+        periods[datetime.date(year, 8, d)] = {"type": "obon", "boost": 0.5}
 
-    # シルバーウィーク（9/14〜9/23）
     for d in range(14, 24):
         try:
-            periods[datetime.date(year, 9, d)] = {"type": "silver_week", "label": "SW", "boost": 0.1}
+            periods[datetime.date(year, 9, d)] = {"type": "sw", "boost": 0.1}
         except ValueError:
             pass
 
-    # 桜シーズン（3/25〜4/10）
     for d in range(25, 32):
         try:
-            periods[datetime.date(year, 3, d)] = {"type": "sakura", "label": "桜", "boost": 0.08}
+            periods[datetime.date(year, 3, d)] = {"type": "sakura", "boost": 0.08}
         except ValueError:
             pass
     for d in range(1, 11):
-        periods[datetime.date(year, 4, d)] = {"type": "sakura", "label": "桜", "boost": 0.08}
+        periods[datetime.date(year, 4, d)] = {"type": "sakura", "boost": 0.08}
 
-    # 紅葉シーズン（10/20〜11/15）
     for d in range(20, 32):
         try:
-            periods[datetime.date(year, 10, d)] = {"type": "koyo", "label": "紅葉", "boost": 0.08}
+            periods[datetime.date(year, 10, d)] = {"type": "koyo", "boost": 0.08}
         except ValueError:
             pass
     for d in range(1, 16):
-        periods[datetime.date(year, 11, d)] = {"type": "koyo", "label": "紅葉", "boost": 0.08}
+        periods[datetime.date(year, 11, d)] = {"type": "koyo", "boost": 0.08}
 
     return periods
 
 
-def generate_covariates(
+# 事前計算（全年度）
+_ALL_HOLIDAYS: dict[datetime.date, str] = {}
+_ALL_PERIODS: dict[datetime.date, dict] = {}
+for _y in range(2023, 2028):
+    _ALL_HOLIDAYS.update(_get_holidays(_y))
+    _ALL_PERIODS.update(_get_special_periods(_y))
+
+
+def generate_covariates_typed(
     start_date: str,
     num_days: int,
     include_history_start: Optional[str] = None,
     history_days: int = 0,
-) -> list[list[float]]:
+) -> dict:
     """
-    TimesFM XReg用の共変量配列を生成する。
-
-    各日付に対して以下の特徴量を生成:
-      [0] is_holiday      : 祝日なら1, それ以外0
-      [1] is_weekend      : 土日なら1, それ以外0
-      [2] is_long_holiday : 連休（GW/お盆/年末年始）なら1, それ以外0
-      [3] season_boost    : 特別期間のブースト値（0.0〜0.5）
-      [4] day_of_week_sin : 曜日のsin値（周期エンコーディング）
-      [5] day_of_week_cos : 曜日のcos値
-      [6] month_sin       : 月のsin値（年次周期）
-      [7] month_cos       : 月のcos値
-
-    Args:
-        start_date: 予測起点日（YYYY-MM-DD）
-        num_days: 予測日数
-        include_history_start: 過去データの開始日（共変量を過去分も含める場合）
-        history_days: 過去データの日数
+    forecast_with_covariates()用の型分け共変量を生成する。
 
     Returns:
-        list[list[float]]: shape (total_days, 8) の共変量配列
+        {
+            "dynamic_numerical": {
+                "season_boost": [[...]]    # 特別期間のブースト値(0.0-0.5)
+                "dow_sin": [[...]],        # 曜日sin周期
+                "dow_cos": [[...]],        # 曜日cos周期
+                "month_sin": [[...]],      # 月sin周期
+                "month_cos": [[...]],      # 月cos周期
+            },
+            "dynamic_categorical": {
+                "is_holiday": [[...]],     # 祝日フラグ (0/1)
+                "is_weekend": [[...]],     # 週末フラグ (0/1)
+                "is_long_holiday": [[...]], # 大型連休フラグ (0/1)
+            },
+            "total_days": int,
+            "num_features": 8,
+        }
     """
-    import math
-
-    # 全年度の祝日・特別期間を事前計算
-    all_holidays: dict[datetime.date, str] = {}
-    all_periods: dict[datetime.date, dict] = {}
-    for y in range(2023, 2028):
-        all_holidays.update(_get_holidays(y))
-        all_periods.update(get_special_periods(y))
-
-    # 日付範囲を決定
     if include_history_start and history_days > 0:
         first_date = datetime.datetime.strptime(include_history_start, "%Y-%m-%d").date()
         total_days = history_days + num_days
@@ -163,44 +150,57 @@ def generate_covariates(
         first_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
         total_days = num_days
 
-    covariates = []
+    # 各特徴量の配列
+    season_boost = []
+    dow_sin = []
+    dow_cos = []
+    month_sin = []
+    month_cos = []
+    is_holiday = []
+    is_weekend = []
+    is_long_holiday = []
+
     for i in range(total_days):
         d = first_date + datetime.timedelta(days=i)
-        dow = d.weekday()  # 0=月, 6=日
+        dow = d.weekday()
 
-        is_holiday = 1.0 if d in all_holidays else 0.0
-        is_weekend = 1.0 if dow >= 5 else 0.0
+        # カテゴリカル（int: 0 or 1）
+        is_holiday.append(1 if d in _ALL_HOLIDAYS else 0)
+        is_weekend.append(1 if dow >= 5 else 0)
 
-        period = all_periods.get(d)
-        is_long_holiday = 1.0 if (period and period["type"] in ["nenmatsu_nenshi", "golden_week", "obon"]) else 0.0
-        season_boost = period["boost"] if period else 0.0
+        period = _ALL_PERIODS.get(d)
+        long_types = {"nenmatsu", "gw", "obon"}
+        is_long_holiday.append(1 if (period and period["type"] in long_types) else 0)
 
-        # 周期エンコーディング
-        dow_sin = math.sin(2 * math.pi * dow / 7)
-        dow_cos = math.cos(2 * math.pi * dow / 7)
-        month_sin = math.sin(2 * math.pi * (d.month - 1) / 12)
-        month_cos = math.cos(2 * math.pi * (d.month - 1) / 12)
+        # 数値
+        season_boost.append(period["boost"] if period else 0.0)
+        dow_sin.append(math.sin(2 * math.pi * dow / 7))
+        dow_cos.append(math.cos(2 * math.pi * dow / 7))
+        month_sin.append(math.sin(2 * math.pi * (d.month - 1) / 12))
+        month_cos.append(math.cos(2 * math.pi * (d.month - 1) / 12))
 
-        covariates.append([
-            is_holiday,
-            is_weekend,
-            is_long_holiday,
-            season_boost,
-            dow_sin,
-            dow_cos,
-            month_sin,
-            month_cos,
-        ])
+    return {
+        "dynamic_numerical": {
+            "season_boost": [season_boost],
+            "dow_sin": [dow_sin],
+            "dow_cos": [dow_cos],
+            "month_sin": [month_sin],
+            "month_cos": [month_cos],
+        },
+        "dynamic_categorical": {
+            "is_holiday": [is_holiday],
+            "is_weekend": [is_weekend],
+            "is_long_holiday": [is_long_holiday],
+        },
+        "total_days": total_days,
+        "num_features": 8,
+    }
 
-    return covariates
 
-
-# テスト用
 if __name__ == "__main__":
-    # 2026年のGW周辺をテスト
-    covs = generate_covariates("2026-04-28", 10)
-    print("date        | hol | wknd | long | boost | dow_sin")
-    d = datetime.date(2026, 4, 28)
-    for i, c in enumerate(covs):
-        dt = d + datetime.timedelta(days=i)
-        print(f"{dt} | {c[0]:.0f}   | {c[1]:.0f}    | {c[2]:.0f}    | {c[3]:.2f}  | {c[4]:+.2f}")
+    result = generate_covariates_typed("2026-04-28", 10)
+    print(f"total_days: {result['total_days']}")
+    print(f"dynamic_numerical keys: {list(result['dynamic_numerical'].keys())}")
+    print(f"dynamic_categorical keys: {list(result['dynamic_categorical'].keys())}")
+    print(f"season_boost sample: {result['dynamic_numerical']['season_boost'][0][:5]}")
+    print(f"is_holiday sample: {result['dynamic_categorical']['is_holiday'][0][:5]}")
