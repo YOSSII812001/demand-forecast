@@ -201,11 +201,25 @@ def process_job(client, engine: ForecastEngine, job: dict):
         last_date = last_date_result.data[0]["date"] if last_date_result.data else "2025-01-01"
         print(f"  予測起点日（データ最終日）: {last_date}")
 
-    # TimesFM予測実行
+    # 過去データの開始日を取得（共変量生成用）
+    first_date_result = (
+        client.table("time_series_data")
+        .select("date")
+        .eq("ryokan_id", job["ryokan_id"])
+        .eq("metric_type", job["metric_type"])
+        .order("date")
+        .limit(1)
+        .execute()
+    )
+    history_start = first_date_result.data[0]["date"] if first_date_result.data else None
+
+    # TimesFM予測実行（祝日・連休の共変量を自動注入）
     forecast = engine.forecast(
         historical_values=historical,
         horizon=job["horizon"],
         frequency=job.get("frequency", "daily"),
+        start_date=last_date,
+        history_start_date=history_start,
     )
 
     # 結果を保存
