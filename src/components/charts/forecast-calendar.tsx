@@ -122,59 +122,77 @@ function MonthGrid({
   const firstDayOffset = (getDay(monthStart) + 6) % 7;
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold mb-2">
-        {format(monthStart, "yyyy年 M月", { locale: ja })}
-      </h3>
-      {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {WEEKDAYS.map((d) => (
-          <div
-            key={d}
-            className={`text-center text-xs font-medium ${
-              d === "土" ? "text-blue-500" : d === "日" ? "text-red-400" : "text-muted-foreground"
-            }`}
-          >
-            {d}
-          </div>
-        ))}
+    <div className="rounded-xl border border-washi bg-card overflow-hidden">
+      {/* 月ヘッダー */}
+      <div className="px-4 py-2.5 bg-muted/40 border-b border-washi">
+        <h3 className="text-sm font-bold">
+          {format(monthStart, "yyyy年 M月", { locale: ja })}
+        </h3>
       </div>
-      {/* 日付グリッド */}
-      <div className="grid grid-cols-7 gap-1">
-        {/* 月初の空白セル */}
-        {Array.from({ length: firstDayOffset }).map((_, i) => (
-          <div key={`empty-${i}`} />
-        ))}
-        {/* 日付セル */}
-        {days.map((day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const result = dataMap.get(dateStr);
-          const value = result ? Number(result.point_estimate) : null;
-          const hasData = value !== null;
-
-          return (
+      <div className="p-3">
+        {/* 曜日ヘッダー */}
+        <div className="grid grid-cols-7 gap-1 mb-1.5 pb-1.5 border-b border-washi/50">
+          {WEEKDAYS.map((d) => (
             <div
-              key={dateStr}
-              className={`relative rounded-lg flex flex-col items-center justify-center py-2 min-h-[3.5rem] transition-colors ${
-                hasData
-                  ? `${getColor(value, dataMin, dataMax)} cursor-default`
-                  : "bg-muted/30 text-muted-foreground/40"
+              key={d}
+              className={`text-center text-xs font-semibold py-1 ${
+                d === "土" ? "text-blue-500" : d === "日" ? "text-red-400" : "text-muted-foreground"
               }`}
-              title={
-                hasData
-                  ? `${dateStr}: ${formatCellValue(value, metricType)}`
-                  : dateStr
-              }
             >
-              <span className="text-sm font-semibold">{day.getDate()}</span>
-              {hasData && (
-                <span className="text-xs leading-none">
-                  {formatCellValue(value, metricType)}
-                </span>
-              )}
+              {d}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        {/* 日付グリッド */}
+        <div className="grid grid-cols-7 gap-1">
+          {/* 月初の空白セル */}
+          {Array.from({ length: firstDayOffset }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[3.5rem]" />
+          ))}
+          {/* 日付セル */}
+          {days.map((day) => {
+            const dateStr = format(day, "yyyy-MM-dd");
+            const result = dataMap.get(dateStr);
+            const value = result ? Number(result.point_estimate) : null;
+            const hasData = value !== null;
+            const dow = (getDay(day) + 6) % 7; // 月曜=0
+
+            return (
+              <div
+                key={dateStr}
+                className={`relative rounded-lg flex flex-col items-center justify-center py-2 min-h-[3.5rem] transition-colors ${
+                  hasData
+                    ? `${getColor(value, dataMin, dataMax)} cursor-default`
+                    : "bg-muted/20 text-muted-foreground/30"
+                }`}
+                title={
+                  hasData
+                    ? `${dateStr}: ${formatCellValue(value, metricType)}`
+                    : dateStr
+                }
+              >
+                <span
+                  className={`text-sm font-semibold ${
+                    !hasData
+                      ? ""
+                      : dow === 5
+                        ? "text-blue-700"
+                        : dow === 6
+                          ? "text-red-600"
+                          : ""
+                  }`}
+                >
+                  {day.getDate()}
+                </span>
+                {hasData && (
+                  <span className="text-xs leading-none">
+                    {formatCellValue(value, metricType)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
