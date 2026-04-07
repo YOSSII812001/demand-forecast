@@ -1,3 +1,6 @@
+## スキル連携
+@~/.claude/skills/ryokan-forecast/SKILL.md
+
 # ryokan-forecast - 温泉旅館 需要予測システム
 
 ## 概要
