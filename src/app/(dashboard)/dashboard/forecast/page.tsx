@@ -32,7 +32,7 @@ import { ForecastChart } from "@/components/charts/forecast-chart";
 import { ForecastCalendar } from "@/components/charts/forecast-calendar";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3 } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck } from "lucide-react";
 
 const STATUS_CONFIG: Record<
   string,
@@ -43,6 +43,36 @@ const STATUS_CONFIG: Record<
   completed: { label: "完了", variant: "outline", icon: CheckCircle },
   failed: { label: "失敗", variant: "destructive", icon: XCircle },
 };
+
+function getReliability(days: number): {
+  label: string;
+  color: string;
+  description: string;
+} {
+  if (days <= 14)
+    return {
+      label: "高信頼",
+      color: "bg-emerald-100 text-emerald-800",
+      description: "シフト計画・食材発注に最適",
+    };
+  if (days <= 30)
+    return {
+      label: "実用的",
+      color: "bg-blue-100 text-blue-800",
+      description: "月間計画・価格調整に適用可能",
+    };
+  if (days <= 60)
+    return {
+      label: "傾向把握",
+      color: "bg-amber-100 text-amber-800",
+      description: "四半期計画の参考値として",
+    };
+  return {
+    label: "参考程度",
+    color: "bg-red-100 text-red-700",
+    description: "方向性のみ。信頼区間が広い",
+  };
+}
 
 export default function ForecastPage() {
   const [metricType, setMetricType] = useState<MetricType>("occupancy_rate");
@@ -251,14 +281,25 @@ export default function ForecastPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>予測日数</Label>
-                  <Input
-                    type="number"
-                    min={7}
-                    max={90}
-                    value={horizon}
-                    onChange={(e) => setHorizon(Number(e.target.value))}
-                    className="w-24"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={7}
+                      max={90}
+                      value={horizon}
+                      onChange={(e) => setHorizon(Number(e.target.value))}
+                      className="w-24"
+                    />
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getReliability(horizon).color}`}
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      {getReliability(horizon).label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {getReliability(horizon).description}
+                  </p>
                 </div>
                 <Button onClick={handleSubmit} disabled={submitting}>
                   {submitting ? "送信中..." : "予測開始"}
@@ -281,8 +322,14 @@ export default function ForecastPage() {
                     {STATUS_CONFIG[selectedJob.status]?.label ?? selectedJob.status}
                   </Badge>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="flex items-center gap-2">
                   {selectedJob.horizon}日間の予測（点推定 + 信頼区間）
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getReliability(selectedJob.horizon).color}`}
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    {getReliability(selectedJob.horizon).label}
+                  </span>
                 </CardDescription>
               </CardHeader>
               <CardContent>

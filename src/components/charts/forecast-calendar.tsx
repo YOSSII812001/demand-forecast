@@ -20,25 +20,17 @@ type Props = {
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
-function getColor(value: number, metricType: MetricType): string {
-  let ratio: number;
-  if (metricType === "occupancy_rate") {
-    ratio = value / 100;
-  } else if (metricType === "guest_count") {
-    ratio = Math.min(value / 60, 1);
-  } else if (metricType === "revenue") {
-    ratio = Math.min(value / 2000000, 1);
-  } else {
-    ratio = Math.min(value / 20, 1);
-  }
-  ratio = Math.max(0, Math.min(1, ratio));
+function getColor(value: number, min: number, max: number): string {
+  const range = max - min;
+  if (range === 0) return "bg-orange-200 text-orange-900";
+  const ratio = (value - min) / range;
 
-  // 銅色グラデーション: 薄い(低)→濃い(高)
-  if (ratio < 0.3) return "bg-orange-50 text-orange-900";
-  if (ratio < 0.5) return "bg-orange-100 text-orange-900";
-  if (ratio < 0.7) return "bg-orange-200 text-orange-900";
-  if (ratio < 0.85) return "bg-orange-300 text-white";
-  return "bg-orange-500 text-white";
+  // 銅色5段階グラデーション: 薄い(低)→濃い(高)
+  if (ratio < 0.2) return "bg-amber-50 text-amber-900";
+  if (ratio < 0.4) return "bg-orange-100 text-orange-900";
+  if (ratio < 0.6) return "bg-orange-200 text-orange-900";
+  if (ratio < 0.8) return "bg-orange-400 text-white";
+  return "bg-orange-600 text-white";
 }
 
 function formatCellValue(value: number, metricType: MetricType): string {
@@ -74,6 +66,11 @@ export function ForecastCalendar({ data, metricType }: Props) {
     return result;
   }, [data]);
 
+  // データ全体のmin/maxを算出（色分け基準）
+  const values = data.map((d) => Number(d.point_estimate));
+  const dataMin = Math.min(...values);
+  const dataMax = Math.max(...values);
+
   if (data.length === 0) return null;
 
   return (
@@ -84,13 +81,15 @@ export function ForecastCalendar({ data, metricType }: Props) {
           monthStart={monthStart}
           dataMap={dataMap}
           metricType={metricType}
+          dataMin={dataMin}
+          dataMax={dataMax}
         />
       ))}
       {/* 凡例 */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
         <span>低</span>
         <div className="flex gap-0.5">
-          {["bg-orange-50", "bg-orange-100", "bg-orange-200", "bg-orange-300", "bg-orange-500"].map(
+          {["bg-amber-50", "bg-orange-100", "bg-orange-200", "bg-orange-400", "bg-orange-600"].map(
             (cls) => (
               <div key={cls} className={`w-5 h-3 rounded-sm ${cls}`} />
             )
@@ -107,10 +106,14 @@ function MonthGrid({
   monthStart,
   dataMap,
   metricType,
+  dataMin,
+  dataMax,
 }: {
   monthStart: Date;
   dataMap: Map<string, ForecastResult>;
   metricType: MetricType;
+  dataMin: number;
+  dataMax: number;
 }) {
   const monthEnd = endOfMonth(monthStart);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -128,7 +131,7 @@ function MonthGrid({
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className={`text-center text-[10px] font-medium ${
+            className={`text-center text-xs font-medium ${
               d === "土" ? "text-blue-500" : d === "日" ? "text-red-400" : "text-muted-foreground"
             }`}
           >
@@ -152,9 +155,9 @@ function MonthGrid({
           return (
             <div
               key={dateStr}
-              className={`relative aspect-square rounded-md flex flex-col items-center justify-center text-[10px] leading-tight transition-colors ${
+              className={`relative rounded-lg flex flex-col items-center justify-center py-2 min-h-[3.5rem] transition-colors ${
                 hasData
-                  ? `${getColor(value, metricType)} cursor-default`
+                  ? `${getColor(value, dataMin, dataMax)} cursor-default`
                   : "bg-muted/30 text-muted-foreground/40"
               }`}
               title={
@@ -163,9 +166,9 @@ function MonthGrid({
                   : dateStr
               }
             >
-              <span className="font-medium">{day.getDate()}</span>
+              <span className="text-sm font-semibold">{day.getDate()}</span>
               {hasData && (
-                <span className="text-[8px] leading-none opacity-80">
+                <span className="text-xs leading-none">
                   {formatCellValue(value, metricType)}
                 </span>
               )}
