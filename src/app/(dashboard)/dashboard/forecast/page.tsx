@@ -143,6 +143,7 @@ export default function ForecastPage() {
         metric_type: metricType,
         horizon,
         frequency: "daily",
+        start_date: format(startDate, "yyyy-MM-dd"),
       })
       .select()
       .single();

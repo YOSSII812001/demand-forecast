@@ -184,17 +184,22 @@ def process_job(client, engine: ForecastEngine, job: dict):
 
     print(f"  過去データ: {len(historical)}件")
 
-    # 最終日付を取得
-    last_date_result = (
-        client.table("time_series_data")
-        .select("date")
-        .eq("ryokan_id", job["ryokan_id"])
-        .eq("metric_type", job["metric_type"])
-        .order("date", desc=True)
-        .limit(1)
-        .execute()
-    )
-    last_date = last_date_result.data[0]["date"] if last_date_result.data else "2025-01-01"
+    # 予測起点日: ジョブのstart_dateがあればそれを使い、なければデータの最終日
+    if job.get("start_date"):
+        last_date = job["start_date"]
+        print(f"  予測起点日（UI指定）: {last_date}")
+    else:
+        last_date_result = (
+            client.table("time_series_data")
+            .select("date")
+            .eq("ryokan_id", job["ryokan_id"])
+            .eq("metric_type", job["metric_type"])
+            .order("date", desc=True)
+            .limit(1)
+            .execute()
+        )
+        last_date = last_date_result.data[0]["date"] if last_date_result.data else "2025-01-01"
+        print(f"  予測起点日（データ最終日）: {last_date}")
 
     # TimesFM予測実行
     forecast = engine.forecast(

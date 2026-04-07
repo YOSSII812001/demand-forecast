@@ -69,6 +69,7 @@ export type ForecastJob = {
   metric_type: MetricType;
   horizon: number;
   frequency: "daily" | "weekly";
+  start_date: string | null;
   status: ForecastJobStatus;
   error_message: string | null;
   started_at: string | null;

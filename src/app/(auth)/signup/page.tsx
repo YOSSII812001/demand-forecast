@@ -49,19 +49,19 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-cream">
-      {/* 左: TimesFM信頼性スクロール（デスクトップのみ） */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+    <div className="flex min-h-screen bg-cream relative overflow-hidden">
+      {/* 背景: TimesFM信頼性スクロール（常時表示） */}
+      <div className="absolute inset-0 lg:relative lg:w-1/2 lg:flex">
         <TimesFmTicker />
-        <div className="absolute bottom-8 left-8 right-8 z-20">
+        <div className="absolute bottom-8 left-8 right-8 z-20 hidden lg:block">
           <p className="text-xs text-muted-foreground/50 text-center">
             Powered by Google TimesFM — Apache 2.0 License
           </p>
         </div>
       </div>
 
-      {/* 右: サインアップフォーム */}
-      <div className="flex-1 flex items-center justify-center px-4">
+      {/* サインアップフォーム（モバイル: 背景上に重ねて表示） */}
+      <div className="flex-1 flex items-center justify-center px-4 relative z-30">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">新規登録</CardTitle>
