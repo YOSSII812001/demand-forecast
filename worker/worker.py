@@ -218,13 +218,34 @@ def process_job(client, engine: ForecastEngine, job: dict):
         last_date = history_end or "2025-01-01"
         print(f"  予測起点日（データ最終日）: {last_date}")
 
-    # TimesFM予測実行（祝日・連休の共変量を自動注入）
+    # 旅館の所在地から座標を取得（天気データ用）
+    from geocoding import geocode
+    lat, lon = 36.6219, 138.5960  # デフォルト: 草津温泉
+    ryokan_result = (
+        client.table("ryokans")
+        .select("location")
+        .eq("id", job["ryokan_id"])
+        .limit(1)
+        .execute()
+    )
+    if ryokan_result.data and ryokan_result.data[0].get("location"):
+        location_text = ryokan_result.data[0]["location"]
+        geo = geocode(location_text)
+        if geo:
+            lat, lon = geo["latitude"], geo["longitude"]
+            print(f"  所在地: {location_text} -> {geo['name']} ({lat:.4f}, {lon:.4f})")
+        else:
+            print(f"  所在地: {location_text}（座標取得失敗、デフォルト使用）")
+
+    # TimesFM予測実行（祝日・連休・天気の共変量を自動注入）
     forecast = engine.forecast(
         historical_values=historical,
         horizon=job["horizon"],
         frequency=job.get("frequency", "daily"),
         start_date=last_date,
         history_start_date=history_start,
+        latitude=lat,
+        longitude=lon,
     )
 
     # 結果を保存
