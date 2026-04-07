@@ -86,6 +86,7 @@ export default function ForecastPage() {
   const [selectedJob, setSelectedJob] = useState<ForecastJob | null>(null);
   const [results, setResults] = useState<ForecastResult[]>([]);
   const [ryokanId, setRyokanId] = useState<string | null>(null);
+  const [ryokanLocation, setRyokanLocation] = useState<string | null>(null);
 
   // 旅館IDとジョブ一覧を取得
   useEffect(() => {
@@ -98,13 +99,14 @@ export default function ForecastPage() {
 
       const { data: ryokan } = await supabase
         .from("ryokans")
-        .select("id")
+        .select("id, location")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
       if (ryokan) {
         setRyokanId(ryokan.id);
+        setRyokanLocation(ryokan.location ?? null);
         const { data: jobList } = await supabase
           .from("forecast_jobs")
           .select("*")
@@ -355,7 +357,7 @@ export default function ForecastPage() {
                 {selectedJob.status === "completed" && results.length > 0 && (
                   <>
                   {/* 考慮データサマリー */}
-                  <div className="mb-4 p-3 rounded-lg bg-muted/40 border border-washi/50">
+                  <div className="mb-4 p-3 rounded-md bg-muted/40 border border-washi/50">
                     <p className="text-xs font-semibold text-foreground mb-2">この予測に考慮されたデータ</p>
                     <div className="flex flex-wrap gap-1.5">
                       {[
@@ -365,9 +367,17 @@ export default function ForecastPage() {
                         { label: "桜・紅葉シーズン", color: "bg-emerald-100 text-emerald-800" },
                         { label: "曜日パターン", color: "bg-purple-100 text-purple-800" },
                         { label: "季節周期", color: "bg-purple-100 text-purple-800" },
-                        { label: "最高/最低気温", color: "bg-sky-100 text-sky-800" },
-                        { label: "降水量", color: "bg-sky-100 text-sky-800" },
-                        { label: "日照時間", color: "bg-sky-100 text-sky-800" },
+                        ...(ryokanLocation
+                          ? [
+                              { label: `${ryokanLocation}の気温`, color: "bg-sky-100 text-sky-800" },
+                              { label: `${ryokanLocation}の降水量`, color: "bg-sky-100 text-sky-800" },
+                              { label: `${ryokanLocation}の日照時間`, color: "bg-sky-100 text-sky-800" },
+                            ]
+                          : [
+                              { label: "最高/最低気温", color: "bg-sky-100 text-sky-800" },
+                              { label: "降水量", color: "bg-sky-100 text-sky-800" },
+                              { label: "日照時間", color: "bg-sky-100 text-sky-800" },
+                            ]),
                       ].map((tag) => (
                         <span
                           key={tag.label}
