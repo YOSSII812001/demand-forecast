@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TimesFmTicker } from "@/components/auth/timesfm-ticker";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -48,65 +49,78 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-cream px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">新規登録</CardTitle>
-          <CardDescription>
-            アカウントを作成して需要予測を始めましょう
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="displayName">お名前</Label>
-              <Input
-                id="displayName"
-                type="text"
-                placeholder="山田 太郎"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="example@ryokan.jp"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="8文字以上"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "登録中..." : "アカウント作成"}
-            </Button>
-          </form>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            すでにアカウントをお持ちの方は{" "}
-            <Link href="/login" className="text-copper underline">
-              ログイン
-            </Link>
+    <div className="flex min-h-screen bg-cream">
+      {/* 左: TimesFM信頼性スクロール（デスクトップのみ） */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <TimesFmTicker />
+        <div className="absolute bottom-8 left-8 right-8 z-20">
+          <p className="text-xs text-muted-foreground/50 text-center">
+            Powered by Google TimesFM — Apache 2.0 License
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* 右: サインアップフォーム */}
+      <div className="flex-1 flex items-center justify-center px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">新規登録</CardTitle>
+            <CardDescription>
+              アカウントを作成して需要予測を始めましょう
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="displayName">お名前</Label>
+                <Input
+                  id="displayName"
+                  type="text"
+                  placeholder="山田 太郎"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">メールアドレス</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="example@ryokan.jp"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">パスワード</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="8文字以上"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={8}
+                  required
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "登録中..." : "アカウント作成"}
+              </Button>
+            </form>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              すでにアカウントをお持ちの方は{" "}
+              <Link href="/login" className="text-copper underline">
+                ログイン
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
