@@ -86,7 +86,7 @@ export default function UploadPage() {
       .select("id")
       .eq("user_id", user.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!ryokan) {
       setMessage("旅館情報を先に登録してください（設定ページ）");

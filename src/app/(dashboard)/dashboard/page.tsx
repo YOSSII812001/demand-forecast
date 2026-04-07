@@ -65,7 +65,7 @@ export default function DashboardPage() {
         .select("*")
         .eq("user_id", user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!ryokan) {
         setData((prev) => ({ ...prev, ryokan: null }));
@@ -81,7 +81,7 @@ export default function DashboardPage() {
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // 最新ジョブの予測結果
       let latestResults: ForecastResult[] = [];

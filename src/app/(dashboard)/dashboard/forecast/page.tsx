@@ -62,7 +62,7 @@ export default function ForecastPage() {
         .select("id")
         .eq("user_id", user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (ryokan) {
         setRyokanId(ryokan.id);
@@ -201,7 +201,9 @@ export default function ForecastPage() {
                     onValueChange={(v) => setMetricType(v as MetricType)}
                   >
                     <SelectTrigger className="w-48">
-                      <SelectValue />
+                      <SelectValue placeholder="メトリクスを選択">
+                        {METRIC_LABELS[metricType]}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(METRIC_LABELS).map(([key, label]) => (

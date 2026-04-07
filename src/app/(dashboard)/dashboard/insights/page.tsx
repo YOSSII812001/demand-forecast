@@ -47,7 +47,7 @@ export default function InsightsPage() {
         .select("id")
         .eq("user_id", user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (ryokan) {
         const { data } = await supabase

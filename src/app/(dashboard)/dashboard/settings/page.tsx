@@ -21,7 +21,7 @@ import type { Ryokan } from "@/lib/types/database";
 const ryokanSchema = z.object({
   name: z.string().min(1, "旅館名は必須です"),
   location: z.string().optional(),
-  total_rooms: z.number().int().positive("1以上の数を入力").optional(),
+  total_rooms: z.nan().transform(() => undefined).or(z.number().int().positive("1以上の数を入力")).optional(),
   room_types_json: z.string().optional(),
 });
 
@@ -55,7 +55,7 @@ export default function SettingsPage() {
         .select("*")
         .eq("user_id", user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setRyokan(data as Ryokan);
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 type="number"
                 min={1}
                 placeholder="例: 30"
-                {...register("total_rooms")}
+                {...register("total_rooms", { valueAsNumber: true })}
               />
               {errors.total_rooms && (
                 <p className="text-sm text-destructive">
