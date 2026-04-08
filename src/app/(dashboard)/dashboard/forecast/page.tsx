@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   METRIC_LABELS,
   type BacktestResult,
+  type DataSource,
   type ForecastJob,
   type ForecastJobType,
   type ForecastResult,
@@ -37,7 +38,7 @@ import { ja } from "date-fns/locale";
 import { AnalysisFactors } from "@/components/methodology/analysis-factors";
 import { ProgressBar } from "@/components/ui/progress";
 import { BacktestResultView } from "@/components/charts/backtest-result";
-import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck, Target } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck, Target, FileSpreadsheet } from "lucide-react";
 
 const STATUS_CONFIG: Record<
   string,
@@ -94,6 +95,7 @@ export default function ForecastPage() {
   const [results, setResults] = useState<ForecastResult[]>([]);
   const [ryokanId, setRyokanId] = useState<string | null>(null);
   const [ryokanLocation, setRyokanLocation] = useState<string | null>(null);
+  const [dataSources, setDataSources] = useState<DataSource[]>([]);
 
   // 旅館IDとジョブ一覧を取得
   useEffect(() => {
@@ -114,6 +116,15 @@ export default function ForecastPage() {
       if (ryokan) {
         setRyokanId(ryokan.id);
         setRyokanLocation(ryokan.location ?? null);
+
+        // 取り込み済みCSVファイル一覧
+        const { data: sources } = await supabase
+          .from("data_sources")
+          .select("*")
+          .eq("ryokan_id", ryokan.id)
+          .order("created_at", { ascending: false });
+        if (sources) setDataSources(sources as DataSource[]);
+
         const { data: jobList } = await supabase
           .from("forecast_jobs")
           .select("*")
@@ -259,6 +270,29 @@ export default function ForecastPage() {
 
       {ryokanId && (
         <>
+          {/* 取り込み済みデータソース */}
+          {dataSources.length > 0 && (
+            <div className="p-3 rounded-sm bg-[#f5f5f5] border border-[#ebebec]">
+              <div className="flex items-center gap-2 mb-2">
+                <FileSpreadsheet className="h-4 w-4 text-copper" />
+                <span className="text-xs font-bold text-[#3c3c43]">取り込み済みデータ</span>
+              </div>
+              <div className="space-y-1">
+                {dataSources.map((ds) => (
+                  <div key={ds.id} className="flex items-center justify-between text-xs">
+                    <span className="text-[#3c3c43] font-medium">{ds.file_name}</span>
+                    <span className="text-[#6d6d72]">
+                      {ds.row_count}行
+                      {ds.date_range_start && ds.date_range_end && (
+                        <> · {ds.date_range_start} ~ {ds.date_range_end}</>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* 予測実行フォーム */}
           <Card>
             <CardHeader>
