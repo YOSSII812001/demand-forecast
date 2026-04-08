@@ -229,10 +229,14 @@ export default function ForecastPage() {
 
   async function handleSelectJob(job: ForecastJob) {
     setSelectedJob(job);
+    setResults([]);
+    setBacktestResult(null);
     if (job.status === "completed") {
-      await loadResults(job.id);
-    } else {
-      setResults([]);
+      if (job.job_type === "backtest") {
+        await loadBacktestResult(job.id);
+      } else {
+        await loadResults(job.id);
+      }
     }
   }
 
@@ -543,9 +547,12 @@ export default function ForecastPage() {
                         <div>
                           <span className="font-medium">
                             {METRIC_LABELS[job.metric_type as MetricType]}
+                            {job.job_type === "backtest" && (
+                              <Badge variant="outline" className="ml-1.5 text-[10px]">検証</Badge>
+                            )}
                           </span>
                           <span className="text-sm text-muted-foreground ml-2">
-                            {job.horizon}日間
+                            {job.job_type === "backtest" ? `${job.test_days ?? job.horizon}日テスト` : `${job.horizon}日間`}
                           </span>
                         </div>
                         <Badge

@@ -35,6 +35,10 @@ ALTER TABLE public.backtest_results ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own backtest results"
   ON public.backtest_results FOR SELECT
   USING (ryokan_id IN (SELECT id FROM public.ryokans WHERE user_id = auth.uid()));
+-- Service Roleのみ挿入可能（ワーカー経由）
 CREATE POLICY "Service can insert backtest results"
   ON public.backtest_results FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "Service can delete backtest results"
+  ON public.backtest_results FOR DELETE
+  USING (auth.role() = 'service_role');

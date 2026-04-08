@@ -150,14 +150,18 @@ class ForecastEngine:
         if on_progress:
             on_progress(10, "データ分割完了")
 
-        # 学習期間の終了日を計算（共変量生成用）
+        # 学習期間の終了日 & テスト期間の開始日を計算（共変量・天気用）
         from datetime import datetime, timedelta
         if history_start_date:
             start_dt = datetime.strptime(history_start_date, "%Y-%m-%d")
             train_end_dt = start_dt + timedelta(days=len(train) - 1)
             train_end = train_end_dt.strftime("%Y-%m-%d")
+            # C-2修正: テスト期間は学習最終日の翌日から
+            forecast_start_dt = train_end_dt + timedelta(days=1)
+            forecast_start = forecast_start_dt.strftime("%Y-%m-%d")
         else:
             train_end = None
+            forecast_start = None
             history_start_date = None
 
         if on_progress:
@@ -168,19 +172,19 @@ class ForecastEngine:
 
         try:
             covariates = generate_covariates_typed(
-                start_date=train_end or "2025-01-01",
+                start_date=forecast_start or "2025-01-01",
                 num_days=test_days,
                 include_history_start=history_start_date,
                 history_days=len(train) if history_start_date else 0,
             )
 
             # 天気データ（backtest_mode: 実績天気のみ使用）
-            if history_start_date and train_end:
+            if history_start_date and forecast_start:
                 from weather import get_weather_covariates
                 weather_covs = get_weather_covariates(
                     history_start=history_start_date,
                     history_end=train_end,
-                    forecast_start=train_end,
+                    forecast_start=forecast_start,
                     forecast_days=test_days,
                     latitude=latitude,
                     longitude=longitude,
@@ -227,12 +231,17 @@ class ForecastEngine:
         for i in range(min(test_days, len(actual), len(predicted))):
             a = actual[i]
             p = predicted[i]
-            error_pct = abs(a - p) / max(abs(a), 1e-8) * 100
 
-            # 日付ラベル
+            # C-1修正: actual≈0の場合のMAPE安全計算
+            if abs(a) < 1e-6:
+                error_pct = 0.0 if abs(p) < 1e-6 else 100.0
+            else:
+                error_pct = abs(a - p) / abs(a) * 100
+
+            # 日付ラベル（C-2修正: forecast_start_dtベース）
             date_label = ""
-            if history_start_date:
-                dt = start_dt + timedelta(days=len(train) + i)
+            if forecast_start:
+                dt = forecast_start_dt + timedelta(days=i)
                 date_label = dt.strftime("%Y-%m-%d")
 
             daily_results.append({
@@ -245,10 +254,20 @@ class ForecastEngine:
             })
             errors.append((a, p))
 
+        # I-1修正: 空リスト時の0除算防止
         n = len(errors)
-        mape = sum(abs(a - p) / max(abs(a), 1e-8) for a, p in errors) / n * 100
-        rmse = math.sqrt(sum((a - p) ** 2 for a, p in errors) / n)
-        mae = sum(abs(a - p) for a, p in errors) / n
+        if n == 0:
+            mape, rmse, mae = 0.0, 0.0, 0.0
+        else:
+            mape_vals = []
+            for a, p in errors:
+                if abs(a) < 1e-6:
+                    mape_vals.append(0.0 if abs(p) < 1e-6 else 100.0)
+                else:
+                    mape_vals.append(abs(a - p) / abs(a) * 100)
+            mape = sum(mape_vals) / n
+            rmse = math.sqrt(sum((a - p) ** 2 for a, p in errors) / n)
+            mae = sum(abs(a - p) for a, p in errors) / n
 
         if on_progress:
             on_progress(100, "完了")
