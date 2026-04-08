@@ -61,8 +61,14 @@ supabase/migrations/ # DBマイグレーション
 ```
 
 ## デザイン
-Lovable DESIGN.md 準拠の温かみスタイル
-- 背景: クリーム (#f7f4ed)
-- プライマリ: 銅色 (#b87333)
-- ボーダー: 和紙色 (#eceae4)
-- フォント: Noto Sans JP
+MUJI DESIGN.md 準拠 + 温泉旅館アクセント
+- 背景: 白 (#fff) — MUJI標準
+- テキスト: 暗グレー (#3c3c43) — MUJI（純黒ではない）
+- プライマリ: 銅色 (#b87333) — 温泉旅館アクセント
+- セカンダリ/ミュート: #f5f5f5 — MUJI Background Secondary
+- アクセント: きなり色 (#f4eede) — MUJIきなり
+- ボーダー: #d8d8d9 — MUJI Border
+- 角丸: 0.25rem (4px) — MUJI控えめ
+- フォント: Helvetica Neue, Arial, Noto Sans JP, Hiragino Kaku Gothic ProN
+- line-height: 1.6統一、letter-spacing: normal（h3のみ0.1em）
+- font-feature-settings: normal（paltなし）
