@@ -50,7 +50,7 @@ def fetch_historical_data(
     """旅館の時系列データを日付順で取得（欠損日付の補完付き）
 
     Returns:
-        (values, start_date, end_date) — 補完済みデータと日付範囲
+        (values, start_date, end_date) -補完済みデータと日付範囲
     """
     import pandas as pd
 
@@ -275,7 +275,7 @@ def process_backtest_job(client, engine: ForecastEngine, job: dict):
         client.table("forecast_jobs").update(
             {"progress": pct, "progress_message": msg}
         ).eq("id", job_id).execute()
-        print(f"  進捗: {pct}% — {msg}")
+        print(f"  進捗: {pct}% -{msg}")
 
     # ステータスを running に更新
     client.table("forecast_jobs").update(

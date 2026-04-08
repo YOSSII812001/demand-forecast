@@ -232,7 +232,7 @@ class ForecastEngine:
             a = actual[i]
             p = predicted[i]
 
-            # C-1修正: actual≈0の場合のMAPE安全計算
+            # C-1修正: actual~=0の場合のMAPE安全計算
             if abs(a) < 1e-6:
                 error_pct = 0.0 if abs(p) < 1e-6 else 100.0
             else:
