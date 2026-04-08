@@ -38,7 +38,7 @@ import { ja } from "date-fns/locale";
 import { AnalysisFactors } from "@/components/methodology/analysis-factors";
 import { ProgressBar } from "@/components/ui/progress";
 import { BacktestResultView } from "@/components/charts/backtest-result";
-import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck, Target, FileSpreadsheet } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck, Target, FileSpreadsheet, RotateCcw } from "lucide-react";
 
 const STATUS_CONFIG: Record<
   string,
@@ -238,6 +238,12 @@ export default function ForecastPage() {
     setSubmitting(false);
   }
 
+  function handleReset() {
+    setSelectedJob(null);
+    setResults([]);
+    setBacktestResult(null);
+  }
+
   async function handleSelectJob(job: ForecastJob) {
     setSelectedJob(job);
     setResults([]);
@@ -432,6 +438,7 @@ export default function ForecastPage() {
           {selectedJob && (
             <Card>
               <CardHeader>
+                <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   {selectedJob.job_type === "backtest" ? "精度検証" : "予測結果"}:
                   {" "}{METRIC_LABELS[selectedJob.metric_type as MetricType]}
@@ -443,6 +450,11 @@ export default function ForecastPage() {
                     {STATUS_CONFIG[selectedJob.status]?.label ?? selectedJob.status}
                   </Badge>
                 </CardTitle>
+                <Button variant="ghost" size="sm" onClick={handleReset}>
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  リセット
+                </Button>
+                </div>
                 <CardDescription className="flex items-center gap-2">
                   {selectedJob.job_type === "backtest"
                     ? `テスト期間: ${selectedJob.test_days ?? selectedJob.horizon}日間`

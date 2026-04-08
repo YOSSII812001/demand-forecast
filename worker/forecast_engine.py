@@ -128,7 +128,7 @@ class ForecastEngine:
                     inputs=[input_array],
                     dynamic_numerical_covariates=covariates["dynamic_numerical"],
                     dynamic_categorical_covariates=covariates["dynamic_categorical"],
-                    xreg_mode="xreg + timesfm",
+                    xreg_mode="timesfm + xreg",
                     normalize_xreg_target_per_input=True,
                     force_on_cpu=True,
                 )
@@ -242,7 +242,7 @@ class ForecastEngine:
                 inputs=[input_array],
                 dynamic_numerical_covariates=covariates["dynamic_numerical"],
                 dynamic_categorical_covariates=covariates["dynamic_categorical"],
-                xreg_mode="xreg + timesfm",
+                xreg_mode="timesfm + xreg",
                 normalize_xreg_target_per_input=True,
                 force_on_cpu=True,
             )
