@@ -185,10 +185,27 @@ def get_weather_covariates(
         if not hist_vals:
             continue
 
-        # 予報が足りない分（16日超）は過去平均で埋める
+        # 予報が足りない分（16日超）は前年同時期の実績天気で埋める（変動を維持）
         if len(forecast_vals) < forecast_days:
-            avg = sum(hist_vals) / len(hist_vals) if hist_vals else 0.0
-            forecast_vals.extend([avg] * (forecast_days - len(forecast_vals)))
+            shortfall = forecast_days - len(forecast_vals)
+            # 前年同時期のデータを取得
+            try:
+                fill_start_dt = datetime.strptime(forecast_start, "%Y-%m-%d") + timedelta(days=len(forecast_vals))
+                prev_year_start = (fill_start_dt.replace(year=fill_start_dt.year - 1)).strftime("%Y-%m-%d")
+                prev_year_end = (fill_start_dt.replace(year=fill_start_dt.year - 1) + timedelta(days=shortfall - 1)).strftime("%Y-%m-%d")
+                prev_year = fetch_historical_weather(prev_year_start, prev_year_end, latitude, longitude)
+                prev_vals = prev_year.get(key, [])
+                if len(prev_vals) >= shortfall:
+                    forecast_vals.extend(prev_vals[:shortfall])
+                    print(f"    {key}: 前年同時期({prev_year_start}~)で{shortfall}日分補完")
+                else:
+                    # 前年データも不足の場合は過去平均にフォールバック
+                    avg = sum(hist_vals) / len(hist_vals) if hist_vals else 0.0
+                    forecast_vals.extend(prev_vals)
+                    forecast_vals.extend([avg] * (forecast_days - len(forecast_vals)))
+            except Exception:
+                avg = sum(hist_vals) / len(hist_vals) if hist_vals else 0.0
+                forecast_vals.extend([avg] * shortfall)
 
         combined = hist_vals + forecast_vals[:forecast_days]
         result[f"weather_{key}"] = [combined]

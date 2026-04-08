@@ -9,6 +9,7 @@
 
 import numpy as np
 import timesfm
+from datetime import datetime, timedelta
 
 from config import TIMESFM_MODEL, MAX_CONTEXT, MAX_HORIZON
 from jp_holidays import generate_covariates_typed
@@ -52,6 +53,7 @@ class ForecastEngine:
         frequency: str = "daily",
         start_date: str | None = None,
         history_start_date: str | None = None,
+        history_end_date: str | None = None,
         latitude: float = 36.6219,
         longitude: float = 138.5960,
     ) -> dict:
@@ -63,24 +65,53 @@ class ForecastEngine:
 
         input_array = np.array(historical_values, dtype=np.float32)
         history_len = len(historical_values)
+        requested_anchor_date = start_date or history_end_date
+        model_history_end_date = history_end_date or start_date
+        model_forecast_start = start_date
+        model_horizon = horizon
+        skip_leading_days = 0
+
+        if model_history_end_date:
+            history_end_dt = datetime.strptime(model_history_end_date, "%Y-%m-%d").date()
+            anchor_dt = history_end_dt
+            if requested_anchor_date:
+                anchor_dt = datetime.strptime(requested_anchor_date, "%Y-%m-%d").date()
+                if anchor_dt < history_end_dt:
+                    print(
+                        "  予測起点日が実データ最終日より前のため、"
+                        f" {model_history_end_date} に補正します"
+                    )
+                    anchor_dt = history_end_dt
+
+            skip_leading_days = max(0, (anchor_dt - history_end_dt).days)
+            model_horizon = horizon + skip_leading_days
+            model_forecast_start = (history_end_dt + timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
+
+            if skip_leading_days > 0:
+                print(
+                    "  予測起点日と実データ最終日のギャップを吸収: "
+                    f"{skip_leading_days}日"
+                )
 
         # 共変量付き予測を試行
-        if start_date:
+        if model_forecast_start:
             try:
                 covariates = generate_covariates_typed(
-                    start_date=start_date,
-                    num_days=horizon,
+                    start_date=model_forecast_start,
+                    num_days=model_horizon,
                     include_history_start=history_start_date,
                     history_days=history_len if history_start_date else 0,
                 )
 
                 # 天気データを取得して数値共変量に追加
-                if history_start_date and start_date:
+                if history_start_date and model_history_end_date and model_forecast_start:
                     weather_covs = get_weather_covariates(
                         history_start=history_start_date,
-                        history_end=start_date,
-                        forecast_start=start_date,
-                        forecast_days=horizon,
+                        history_end=model_history_end_date,
+                        forecast_start=model_forecast_start,
+                        forecast_days=model_horizon,
                         latitude=latitude,
                         longitude=longitude,
                     )
@@ -103,7 +134,13 @@ class ForecastEngine:
                 )
 
                 print("  予測モード: forecast_with_covariates（祝日・連休考慮）")
-                return self._extract_results(point_forecast, quantile_forecast, horizon)
+                return self._extract_results(
+                    point_forecast,
+                    quantile_forecast,
+                    horizon=model_horizon,
+                    skip_leading=skip_leading_days,
+                    output_horizon=horizon,
+                )
 
             except Exception as e:
                 print(f"  共変量付き予測エラー: {e}")
@@ -111,11 +148,17 @@ class ForecastEngine:
 
         # フォールバック: 共変量なし
         point_forecast, quantile_forecast = self.model.forecast(
-            horizon=horizon,
+            horizon=model_horizon,
             inputs=[input_array],
         )
         print("  予測モード: forecast（共変量なし）")
-        return self._extract_results(point_forecast, quantile_forecast, horizon)
+        return self._extract_results(
+            point_forecast,
+            quantile_forecast,
+            horizon=model_horizon,
+            skip_leading=skip_leading_days,
+            output_horizon=horizon,
+        )
 
     def backtest(
         self,
@@ -283,21 +326,31 @@ class ForecastEngine:
         }
 
     def _extract_results(
-        self, point_forecast, quantile_forecast, horizon: int
+        self,
+        point_forecast,
+        quantile_forecast,
+        horizon: int,
+        skip_leading: int = 0,
+        output_horizon: int | None = None,
     ) -> dict:
         """予測結果を統一フォーマットで抽出
 
-        return_backcast=True時は出力が(1, context+horizon)に膨張するため、
-        末尾からhorizon分を取得する。
+        return_backcast=True時は出力が(1, context+horizon)に膨張する。
+        まず末尾からhorizon分を取得し、必要なら先頭のギャップ日数を捨てる。
         """
         pf = np.array(point_forecast)
         qf = np.array(quantile_forecast)
+
+        effective_horizon = output_horizon or max(0, horizon - skip_leading)
+        forecast_slice = slice(-horizon, None)
+        output_slice = slice(skip_leading, skip_leading + effective_horizon)
+
         # 末尾からhorizon分を取得（backcast有無に関わらず正しい予測値）
-        points = pf[0, -horizon:].tolist()
+        points = pf[0, forecast_slice][output_slice].tolist()
 
         if qf.ndim == 3:
-            q10 = qf[0, -horizon:, 1].tolist()
-            q90 = qf[0, -horizon:, 9].tolist()
+            q10 = qf[0, forecast_slice, 1][output_slice].tolist()
+            q90 = qf[0, forecast_slice, 9][output_slice].tolist()
         else:
             q10 = points
             q90 = points

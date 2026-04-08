@@ -192,6 +192,8 @@ def generate_insights(client, job: dict, forecast: dict):
 
 def process_job(client, engine: ForecastEngine, job: dict):
     """1つのジョブを処理"""
+    from datetime import datetime
+
     job_id = job["id"]
     print(f"\n--- ジョブ処理開始: {job_id} ---")
     print(f"  旅館: {job['ryokan_id']}, メトリクス: {job['metric_type']}, 期間: {job['horizon']}日")
@@ -212,11 +214,30 @@ def process_job(client, engine: ForecastEngine, job: dict):
 
     # 予測起点日: ジョブのstart_dateがあればそれを使い、なければデータの最終日
     if job.get("start_date"):
-        last_date = job["start_date"]
-        print(f"  予測起点日（UI指定）: {last_date}")
+        requested_anchor_date = job["start_date"]
+        print(f"  予測起点日（UI指定）: {requested_anchor_date}")
     else:
-        last_date = history_end or "2025-01-01"
-        print(f"  予測起点日（データ最終日）: {last_date}")
+        requested_anchor_date = history_end or "2025-01-01"
+        print(f"  予測起点日（データ最終日）: {requested_anchor_date}")
+
+    forecast_anchor_date = requested_anchor_date
+    if history_end and requested_anchor_date:
+        history_end_dt = datetime.strptime(history_end, "%Y-%m-%d").date()
+        requested_anchor_dt = datetime.strptime(
+            requested_anchor_date, "%Y-%m-%d"
+        ).date()
+        if requested_anchor_dt < history_end_dt:
+            forecast_anchor_date = history_end
+            print(
+                "  UI指定の予測起点日が実データ最終日より前のため、"
+                f" {forecast_anchor_date} に補正"
+            )
+        elif requested_anchor_dt > history_end_dt:
+            gap_days = (requested_anchor_dt - history_end_dt).days
+            print(
+                "  実データ最終日から予測起点日までのギャップ: "
+                f"{gap_days}日"
+            )
 
     # 旅館の所在地から座標を取得（天気データ用）
     from geocoding import geocode
@@ -242,14 +263,15 @@ def process_job(client, engine: ForecastEngine, job: dict):
         historical_values=historical,
         horizon=job["horizon"],
         frequency=job.get("frequency", "daily"),
-        start_date=last_date,
+        start_date=forecast_anchor_date,
         history_start_date=history_start,
+        history_end_date=history_end,
         latitude=lat,
         longitude=lon,
     )
 
     # 結果を保存
-    n_results = save_forecast_results(client, job, forecast, last_date)
+    n_results = save_forecast_results(client, job, forecast, forecast_anchor_date)
     print(f"  予測結果: {n_results}件保存")
 
     # インサイト生成
