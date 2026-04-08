@@ -94,6 +94,13 @@ export default function UploadPage() {
       return;
     }
 
+    // 同じファイル名の既存データソースを削除（重複防止）
+    await supabase
+      .from("data_sources")
+      .delete()
+      .eq("ryokan_id", ryokan.id)
+      .eq("file_name", file.name);
+
     // データソースを登録
     const { data: ds, error: dsError } = await supabase
       .from("data_sources")
