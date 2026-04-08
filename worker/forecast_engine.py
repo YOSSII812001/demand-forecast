@@ -215,13 +215,13 @@ class ForecastEngine:
         if on_progress:
             on_progress(80, "精度計算中...")
 
-        # 結果抽出（forecast_with_covariatesはlistを返す場合がある）
+        # 結果抽出（末尾からtest_days分 = backcast有無に関わらず正しい予測値）
         pf = np.array(point_forecast)
         qf = np.array(quantile_forecast)
-        predicted = pf[0].tolist()[:test_days]
+        predicted = pf[0, -test_days:].tolist()
         if qf.ndim == 3:
-            q10 = qf[0, :test_days, 1].tolist()
-            q90 = qf[0, :test_days, 9].tolist()
+            q10 = qf[0, -test_days:, 1].tolist()
+            q90 = qf[0, -test_days:, 9].tolist()
         else:
             q10 = predicted
             q90 = predicted
@@ -285,15 +285,19 @@ class ForecastEngine:
     def _extract_results(
         self, point_forecast, quantile_forecast, horizon: int
     ) -> dict:
-        """予測結果を統一フォーマットで抽出"""
+        """予測結果を統一フォーマットで抽出
+
+        return_backcast=True時は出力が(1, context+horizon)に膨張するため、
+        末尾からhorizon分を取得する。
+        """
         pf = np.array(point_forecast)
         qf = np.array(quantile_forecast)
-        points = pf[0].tolist()[:horizon]
+        # 末尾からhorizon分を取得（backcast有無に関わらず正しい予測値）
+        points = pf[0, -horizon:].tolist()
 
-        # quantile_forecast: (batch, horizon, 11)
         if qf.ndim == 3:
-            q10 = qf[0, :horizon, 1].tolist()
-            q90 = qf[0, :horizon, 9].tolist()
+            q10 = qf[0, -horizon:, 1].tolist()
+            q90 = qf[0, -horizon:, 9].tolist()
         else:
             q10 = points
             q90 = points
