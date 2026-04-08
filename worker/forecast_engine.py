@@ -215,11 +215,13 @@ class ForecastEngine:
         if on_progress:
             on_progress(80, "精度計算中...")
 
-        # 結果抽出
-        predicted = point_forecast[0].tolist()[:test_days]
-        if quantile_forecast.ndim == 3:
-            q10 = quantile_forecast[0, :test_days, 1].tolist()
-            q90 = quantile_forecast[0, :test_days, 9].tolist()
+        # 結果抽出（forecast_with_covariatesはlistを返す場合がある）
+        pf = np.array(point_forecast)
+        qf = np.array(quantile_forecast)
+        predicted = pf[0].tolist()[:test_days]
+        if qf.ndim == 3:
+            q10 = qf[0, :test_days, 1].tolist()
+            q90 = qf[0, :test_days, 9].tolist()
         else:
             q10 = predicted
             q90 = predicted
@@ -281,19 +283,19 @@ class ForecastEngine:
         }
 
     def _extract_results(
-        self, point_forecast: np.ndarray, quantile_forecast: np.ndarray, horizon: int
+        self, point_forecast, quantile_forecast, horizon: int
     ) -> dict:
         """予測結果を統一フォーマットで抽出"""
-        points = point_forecast[0].tolist()[:horizon]
+        pf = np.array(point_forecast)
+        qf = np.array(quantile_forecast)
+        points = pf[0].tolist()[:horizon]
 
         # quantile_forecast: (batch, horizon, 11)
-        # index 0=mean, 1=10th, 2=20th, ..., 5=50th(median), ..., 9=90th, 10=?
-        if quantile_forecast.ndim == 3:
-            q10 = quantile_forecast[0, :horizon, 1].tolist()
-            q90 = quantile_forecast[0, :horizon, 9].tolist()
+        if qf.ndim == 3:
+            q10 = qf[0, :horizon, 1].tolist()
+            q90 = qf[0, :horizon, 9].tolist()
         else:
-            # forecast_with_covariatesの戻り値が2Dの場合のフォールバック
-            q10 = points  # 同じ値で埋める
+            q10 = points
             q90 = points
 
         return {
