@@ -117,6 +117,150 @@ class ForecastEngine:
         print("  予測モード: forecast（共変量なし）")
         return self._extract_results(point_forecast, quantile_forecast, horizon)
 
+    def backtest(
+        self,
+        historical_values: list[float],
+        test_days: int = 30,
+        history_start_date: str | None = None,
+        latitude: float = 36.6219,
+        longitude: float = 138.5960,
+        on_progress: callable = None,
+    ) -> dict:
+        """
+        バックテスト: 過去データの末尾test_days分を隠して予測し、精度を検証
+
+        Args:
+            historical_values: 全過去データ
+            test_days: テスト期間日数（末尾からマスク）
+            on_progress: progress(pct, msg)コールバック
+        Returns:
+            {mape, rmse, mae, daily_results: [{date, actual, predicted, q10, q90, error_pct}]}
+        """
+        if self.model is None:
+            raise RuntimeError("モデルが未ロードです")
+
+        total = len(historical_values)
+        if total < test_days + 30:
+            raise ValueError(f"データ不足: {total}件（テスト{test_days}日+学習30日以上必要）")
+
+        # データ分割
+        train = historical_values[: total - test_days]
+        actual = historical_values[total - test_days :]
+
+        if on_progress:
+            on_progress(10, "データ分割完了")
+
+        # 学習期間の終了日を計算（共変量生成用）
+        from datetime import datetime, timedelta
+        if history_start_date:
+            start_dt = datetime.strptime(history_start_date, "%Y-%m-%d")
+            train_end_dt = start_dt + timedelta(days=len(train) - 1)
+            train_end = train_end_dt.strftime("%Y-%m-%d")
+        else:
+            train_end = None
+            history_start_date = None
+
+        if on_progress:
+            on_progress(30, "共変量生成中...")
+
+        # 予測実行（共変量付き、天気はbacktest_mode=True）
+        input_array = np.array(train, dtype=np.float32)
+
+        try:
+            covariates = generate_covariates_typed(
+                start_date=train_end or "2025-01-01",
+                num_days=test_days,
+                include_history_start=history_start_date,
+                history_days=len(train) if history_start_date else 0,
+            )
+
+            # 天気データ（backtest_mode: 実績天気のみ使用）
+            if history_start_date and train_end:
+                from weather import get_weather_covariates
+                weather_covs = get_weather_covariates(
+                    history_start=history_start_date,
+                    history_end=train_end,
+                    forecast_start=train_end,
+                    forecast_days=test_days,
+                    latitude=latitude,
+                    longitude=longitude,
+                    backtest_mode=True,
+                )
+                covariates["dynamic_numerical"].update(weather_covs)
+
+            if on_progress:
+                on_progress(50, "TimesFM推論実行中...")
+
+            point_forecast, quantile_forecast = self.model.forecast_with_covariates(
+                inputs=[input_array],
+                dynamic_numerical_covariates=covariates["dynamic_numerical"],
+                dynamic_categorical_covariates=covariates["dynamic_categorical"],
+                xreg_mode="xreg + timesfm",
+                normalize_xreg_target_per_input=True,
+                force_on_cpu=True,
+            )
+        except Exception as e:
+            print(f"  共変量付きバックテストエラー: {e}、フォールバック")
+            if on_progress:
+                on_progress(50, "推論実行中（共変量なし）...")
+            point_forecast, quantile_forecast = self.model.forecast(
+                horizon=test_days,
+                inputs=[input_array],
+            )
+
+        if on_progress:
+            on_progress(80, "精度計算中...")
+
+        # 結果抽出
+        predicted = point_forecast[0].tolist()[:test_days]
+        if quantile_forecast.ndim == 3:
+            q10 = quantile_forecast[0, :test_days, 1].tolist()
+            q90 = quantile_forecast[0, :test_days, 9].tolist()
+        else:
+            q10 = predicted
+            q90 = predicted
+
+        # 精度指標計算
+        import math
+        errors = []
+        daily_results = []
+        for i in range(min(test_days, len(actual), len(predicted))):
+            a = actual[i]
+            p = predicted[i]
+            error_pct = abs(a - p) / max(abs(a), 1e-8) * 100
+
+            # 日付ラベル
+            date_label = ""
+            if history_start_date:
+                dt = start_dt + timedelta(days=len(train) + i)
+                date_label = dt.strftime("%Y-%m-%d")
+
+            daily_results.append({
+                "date": date_label,
+                "actual": round(a, 2),
+                "predicted": round(p, 2),
+                "q10": round(q10[i], 2) if i < len(q10) else None,
+                "q90": round(q90[i], 2) if i < len(q90) else None,
+                "error_pct": round(error_pct, 1),
+            })
+            errors.append((a, p))
+
+        n = len(errors)
+        mape = sum(abs(a - p) / max(abs(a), 1e-8) for a, p in errors) / n * 100
+        rmse = math.sqrt(sum((a - p) ** 2 for a, p in errors) / n)
+        mae = sum(abs(a - p) for a, p in errors) / n
+
+        if on_progress:
+            on_progress(100, "完了")
+
+        return {
+            "mape": round(mape, 2),
+            "rmse": round(rmse, 2),
+            "mae": round(mae, 2),
+            "test_days": test_days,
+            "daily_results": daily_results,
+        }
+
     def _extract_results(
         self, point_forecast: np.ndarray, quantile_forecast: np.ndarray, horizon: int
     ) -> dict:

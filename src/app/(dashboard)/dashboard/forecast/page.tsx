@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   METRIC_LABELS,
+  type BacktestResult,
   type ForecastJob,
+  type ForecastJobType,
   type ForecastResult,
   type MetricType,
 } from "@/lib/types/database";
@@ -33,7 +35,9 @@ import { ForecastCalendar } from "@/components/charts/forecast-calendar";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { AnalysisFactors } from "@/components/methodology/analysis-factors";
-import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck } from "lucide-react";
+import { ProgressBar } from "@/components/ui/progress";
+import { BacktestResultView } from "@/components/charts/backtest-result";
+import { TrendingUp, Clock, CheckCircle, XCircle, Loader2, CalendarDays, BarChart3, ShieldCheck, Target } from "lucide-react";
 
 const STATUS_CONFIG: Record<
   string,
@@ -81,6 +85,9 @@ export default function ForecastPage() {
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [viewMode, setViewMode] = useState<"chart" | "calendar">("chart");
+  const [jobMode, setJobMode] = useState<ForecastJobType>("forecast");
+  const [testDays, setTestDays] = useState(30);
+  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [jobs, setJobs] = useState<ForecastJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<ForecastJob | null>(null);
@@ -142,7 +149,11 @@ export default function ForecastPage() {
           if (selectedJob?.id === updated.id) {
             setSelectedJob(updated);
             if (updated.status === "completed") {
-              loadResults(updated.id);
+              if (updated.job_type === "backtest") {
+                loadBacktestResult(updated.id);
+              } else {
+                loadResults(updated.id);
+              }
             }
           }
         }
@@ -164,20 +175,41 @@ export default function ForecastPage() {
     if (data) setResults(data as ForecastResult[]);
   }, []);
 
+  const loadBacktestResult = useCallback(async (jobId: string) => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("backtest_results")
+      .select("*")
+      .eq("job_id", jobId)
+      .maybeSingle();
+    if (data) setBacktestResult(data as BacktestResult);
+  }, []);
+
   async function handleSubmit() {
     if (!ryokanId) return;
     setSubmitting(true);
 
     const supabase = createClient();
+    const insertPayload = jobMode === "backtest"
+      ? {
+          ryokan_id: ryokanId,
+          metric_type: metricType,
+          horizon: testDays,
+          frequency: "daily",
+          job_type: "backtest",
+          test_days: testDays,
+        }
+      : {
+          ryokan_id: ryokanId,
+          metric_type: metricType,
+          horizon,
+          frequency: "daily",
+          start_date: format(startDate, "yyyy-MM-dd"),
+          job_type: "forecast",
+        };
     const { data: job, error } = await supabase
       .from("forecast_jobs")
-      .insert({
-        ryokan_id: ryokanId,
-        metric_type: metricType,
-        horizon,
-        frequency: "daily",
-        start_date: format(startDate, "yyyy-MM-dd"),
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
@@ -191,6 +223,7 @@ export default function ForecastPage() {
     setJobs((prev) => [newJob, ...prev]);
     setSelectedJob(newJob);
     setResults([]);
+    setBacktestResult(null);
     setSubmitting(false);
   }
 
@@ -227,14 +260,32 @@ export default function ForecastPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-copper" />
-                新しい予測を実行
+                {jobMode === "forecast" ? "需要予測を実行" : "予測精度を検証（バックテスト）"}
               </CardTitle>
               <CardDescription>
-                予測対象のメトリクスと期間を選択してください。
-                ローカルPythonワーカーが稼働中であれば自動で予測が実行されます。
+                {jobMode === "forecast"
+                  ? "予測対象のメトリクスと期間を選択してください。"
+                  : "過去データの末尾を隠して予測し、実測値と比較して精度を検証します。"}
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* モード切替 */}
+              <Tabs
+                value={jobMode}
+                onValueChange={(v) => setJobMode(v as ForecastJobType)}
+                className="mb-4"
+              >
+                <TabsList>
+                  <TabsTrigger value="forecast">
+                    <TrendingUp className="h-3.5 w-3.5 mr-1" />
+                    需要予測
+                  </TabsTrigger>
+                  <TabsTrigger value="backtest">
+                    <Target className="h-3.5 w-3.5 mr-1" />
+                    精度検証
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
               <div className="flex flex-wrap gap-4 items-end">
                 <div className="space-y-2">
                   <Label>メトリクス</Label>
@@ -256,57 +307,85 @@ export default function ForecastPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>予測起点日</Label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowCalendarPicker(!showCalendarPicker)}
-                      className="flex items-center gap-2 h-8 px-3 rounded-lg border border-input bg-background text-sm hover:bg-muted transition-colors"
-                    >
-                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                      {format(startDate, "yyyy/MM/dd", { locale: ja })}
-                    </button>
-                    {showCalendarPicker && (
-                      <div className="absolute top-10 left-0 z-50 bg-card border border-washi rounded-xl shadow-lg p-2">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(date) => {
-                            if (date) setStartDate(date);
-                            setShowCalendarPicker(false);
-                          }}
-                          locale={ja}
-                        />
+                {/* モード別パラメータ */}
+                {jobMode === "forecast" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>予測起点日</Label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowCalendarPicker(!showCalendarPicker)}
+                          className="flex items-center gap-2 h-8 px-3 rounded-md border border-input bg-background text-sm hover:bg-muted transition-colors"
+                        >
+                          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                          {format(startDate, "yyyy/MM/dd", { locale: ja })}
+                        </button>
+                        {showCalendarPicker && (
+                          <div className="absolute top-10 left-0 z-50 bg-card border border-washi rounded-md shadow-lg p-2">
+                            <Calendar
+                              mode="single"
+                              selected={startDate}
+                              onSelect={(date) => {
+                                if (date) setStartDate(date);
+                                setShowCalendarPicker(false);
+                              }}
+                              locale={ja}
+                            />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>予測日数</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={7}
-                      max={90}
-                      value={horizon}
-                      onChange={(e) => setHorizon(Number(e.target.value))}
-                      className="w-24"
-                    />
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getReliability(horizon).color}`}
-                    >
-                      <ShieldCheck className="h-3 w-3" />
-                      {getReliability(horizon).label}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {getReliability(horizon).description}
-                  </p>
-                </div>
-                <Button onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? "送信中..." : "予測開始"}
-                </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>予測日数</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={7}
+                          max={90}
+                          value={horizon}
+                          onChange={(e) => setHorizon(Number(e.target.value))}
+                          className="w-24"
+                        />
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getReliability(horizon).color}`}
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          {getReliability(horizon).label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {getReliability(horizon).description}
+                      </p>
+                    </div>
+                    <Button onClick={handleSubmit} disabled={submitting}>
+                      {submitting ? "送信中..." : "予測開始"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label>テスト期間（日数）</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min={7}
+                          max={90}
+                          value={testDays}
+                          onChange={(e) => setTestDays(Number(e.target.value))}
+                          className="w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          過去データの末尾 {testDays} 日分を隠して精度検証
+                        </span>
+                      </div>
+                    </div>
+                    <Button onClick={handleSubmit} disabled={submitting}>
+                      <Target className="h-4 w-4 mr-1" />
+                      {submitting ? "送信中..." : "精度を検証"}
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -316,7 +395,8 @@ export default function ForecastPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  予測結果: {METRIC_LABELS[selectedJob.metric_type as MetricType]}
+                  {selectedJob.job_type === "backtest" ? "精度検証" : "予測結果"}:
+                  {" "}{METRIC_LABELS[selectedJob.metric_type as MetricType]}
                   <Badge
                     variant={
                       STATUS_CONFIG[selectedJob.status]?.variant ?? "secondary"
@@ -326,7 +406,9 @@ export default function ForecastPage() {
                   </Badge>
                 </CardTitle>
                 <CardDescription className="flex items-center gap-2">
-                  {selectedJob.horizon}日間の予測（点推定 + 信頼区間）
+                  {selectedJob.job_type === "backtest"
+                    ? `テスト期間: ${selectedJob.test_days ?? selectedJob.horizon}日間`
+                    : `${selectedJob.horizon}日間の予測（点推定 + 信頼区間）`}
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getReliability(selectedJob.horizon).color}`}
                   >
@@ -343,9 +425,15 @@ export default function ForecastPage() {
                   </div>
                 )}
                 {selectedJob.status === "running" && (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    TimesFMで予測を実行中...
+                  <div className="space-y-6 py-8 px-4">
+                    <div className="flex items-center justify-center text-muted-foreground">
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      {selectedJob.job_type === "backtest" ? "精度検証中..." : "TimesFMで予測を実行中..."}
+                    </div>
+                    <ProgressBar
+                      value={selectedJob.progress}
+                      message={selectedJob.progress_message}
+                    />
                   </div>
                 )}
                 {selectedJob.status === "failed" && (
@@ -354,7 +442,15 @@ export default function ForecastPage() {
                     {selectedJob.error_message ?? "予測に失敗しました"}
                   </div>
                 )}
-                {selectedJob.status === "completed" && results.length > 0 && (
+                {/* バックテスト完了 */}
+                {selectedJob.status === "completed" && selectedJob.job_type === "backtest" && backtestResult && (
+                  <BacktestResultView
+                    result={backtestResult}
+                    metricType={selectedJob.metric_type as MetricType}
+                  />
+                )}
+                {/* 通常予測完了 */}
+                {selectedJob.status === "completed" && selectedJob.job_type !== "backtest" && results.length > 0 && (
                   <>
                   {/* 考慮データサマリー */}
                   <div className="mb-4 p-3 rounded-md bg-muted/40 border border-washi/50">

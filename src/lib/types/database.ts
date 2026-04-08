@@ -63,6 +63,8 @@ export type TimeSeriesData = {
 
 export type ForecastJobStatus = "queued" | "running" | "completed" | "failed";
 
+export type ForecastJobType = "forecast" | "backtest";
+
 export type ForecastJob = {
   id: string;
   ryokan_id: string;
@@ -70,10 +72,36 @@ export type ForecastJob = {
   horizon: number;
   frequency: "daily" | "weekly";
   start_date: string | null;
+  job_type: ForecastJobType;
+  progress: number;
+  progress_message: string | null;
+  test_days: number | null;
   status: ForecastJobStatus;
   error_message: string | null;
   started_at: string | null;
   completed_at: string | null;
+  created_at: string;
+};
+
+export type BacktestDailyResult = {
+  date: string;
+  actual: number;
+  predicted: number;
+  q10: number | null;
+  q90: number | null;
+  error_pct: number;
+};
+
+export type BacktestResult = {
+  id: string;
+  job_id: string;
+  ryokan_id: string;
+  metric_type: MetricType;
+  mape: number;
+  rmse: number;
+  mae: number;
+  test_days: number;
+  daily_results: BacktestDailyResult[];
   created_at: string;
 };
 

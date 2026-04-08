@@ -150,13 +150,15 @@ def get_weather_covariates(
     forecast_days: int,
     latitude: float = 36.6219,
     longitude: float = 138.5960,
+    backtest_mode: bool = False,
 ) -> dict[str, list[list[float]]]:
     """
     過去+未来の天気データを結合し、TimesFMのdynamic_numerical_covariatesとして返す。
 
+    backtest_mode=True: テスト期間も実績天気(archive API)を使用（リーク防止）
     forecast_daysが16日超の場合、16日以降は過去同時期の平均で埋める。
     """
-    print(f"  天気データ取得中（{latitude}, {longitude}）...")
+    print(f"  天気データ取得中（{latitude}, {longitude}）{'[バックテスト]' if backtest_mode else ''}...")
 
     # 過去データ
     hist = fetch_historical_weather(history_start, history_end, latitude, longitude)
@@ -164,8 +166,15 @@ def get_weather_covariates(
         print("  天気データ: 過去データ取得失敗、スキップ")
         return {}
 
-    # 予報データ
-    forecast = fetch_forecast_weather(forecast_days, latitude, longitude)
+    if backtest_mode:
+        # バックテスト: テスト期間も実績天気を使用（予報APIは使わない→リーク防止）
+        from datetime import datetime, timedelta
+        fs = datetime.strptime(forecast_start, "%Y-%m-%d")
+        fe = (fs + timedelta(days=forecast_days - 1)).strftime("%Y-%m-%d")
+        forecast = fetch_historical_weather(forecast_start, fe, latitude, longitude)
+    else:
+        # 通常予測: 予報APIを使用
+        forecast = fetch_forecast_weather(forecast_days, latitude, longitude)
 
     # 各特徴量について過去+未来を結合
     result = {}

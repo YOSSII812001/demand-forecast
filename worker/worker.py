@@ -264,6 +264,81 @@ def process_job(client, engine: ForecastEngine, job: dict):
     print(f"  [OK] ジョブ完了: {job_id}")
 
 
+def process_backtest_job(client, engine: ForecastEngine, job: dict):
+    """バックテストジョブを処理"""
+    job_id = job["id"]
+    test_days = job.get("test_days") or 30
+    print(f"\n--- バックテスト開始: {job_id} ---")
+    print(f"  旅館: {job['ryokan_id']}, メトリクス: {job['metric_type']}, テスト期間: {test_days}日")
+
+    def update_progress(pct: int, msg: str):
+        client.table("forecast_jobs").update(
+            {"progress": pct, "progress_message": msg}
+        ).eq("id", job_id).execute()
+        print(f"  進捗: {pct}% — {msg}")
+
+    # ステータスを running に更新
+    client.table("forecast_jobs").update(
+        {"status": "running", "started_at": datetime.utcnow().isoformat(), "progress": 0}
+    ).eq("id", job_id).execute()
+
+    # 過去データ取得
+    historical, history_start, history_end = fetch_historical_data(
+        client, job["ryokan_id"], job["metric_type"]
+    )
+    if len(historical) < test_days + 30:
+        raise ValueError(f"データ不足: {len(historical)}件（テスト{test_days}日+学習30日以上必要）")
+
+    update_progress(5, f"過去データ: {len(historical)}件取得完了")
+
+    # 旅館の座標取得
+    from geocoding import geocode
+    lat, lon = 36.6219, 138.5960
+    ryokan_result = (
+        client.table("ryokans")
+        .select("location")
+        .eq("id", job["ryokan_id"])
+        .limit(1)
+        .execute()
+    )
+    if ryokan_result.data and ryokan_result.data[0].get("location"):
+        geo = geocode(ryokan_result.data[0]["location"])
+        if geo:
+            lat, lon = geo["latitude"], geo["longitude"]
+
+    # バックテスト実行
+    result = engine.backtest(
+        historical_values=historical,
+        test_days=test_days,
+        history_start_date=history_start,
+        latitude=lat,
+        longitude=lon,
+        on_progress=update_progress,
+    )
+
+    # 結果をDBに保存
+    client.table("backtest_results").insert({
+        "job_id": job_id,
+        "ryokan_id": job["ryokan_id"],
+        "metric_type": job["metric_type"],
+        "mape": result["mape"],
+        "rmse": result["rmse"],
+        "mae": result["mae"],
+        "test_days": test_days,
+        "daily_results": result["daily_results"],
+    }).execute()
+
+    # ステータスを completed に更新
+    client.table("forecast_jobs").update({
+        "status": "completed",
+        "completed_at": datetime.utcnow().isoformat(),
+        "progress": 100,
+        "progress_message": f"MAPE: {result['mape']}%",
+    }).eq("id", job_id).execute()
+
+    print(f"  [OK] バックテスト完了: MAPE={result['mape']}%, RMSE={result['rmse']}, MAE={result['mae']}")
+
+
 def main():
     print("=" * 50)
     print("温泉旅館 需要予測ワーカー 起動")
@@ -287,7 +362,10 @@ def main():
                 print(f"キューにジョブ {len(jobs)}件 検出")
                 for job in jobs:
                     try:
-                        process_job(client, engine, job)
+                        if job.get("job_type") == "backtest":
+                            process_backtest_job(client, engine, job)
+                        else:
+                            process_job(client, engine, job)
                     except Exception as e:
                         print(f"  [ERR] ジョブエラー ({job['id']}): {e}")
                         traceback.print_exc()
