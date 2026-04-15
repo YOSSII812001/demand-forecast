@@ -1,5 +1,5 @@
 ## スキル連携
-@~/.claude/skills/ryokan-forecast/SKILL.md
+@~/.claude/skills/demand-forecast/SKILL.md
 
 # demand-forecast - AI需要予測システム
 
