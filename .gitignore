@@ -45,3 +45,5 @@ worker/.venv/
 worker/__pycache__/
 worker/*.pyc
 worker/.env
+
+.vercel

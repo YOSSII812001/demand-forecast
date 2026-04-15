@@ -9,7 +9,7 @@ import {
   type ForecastResult,
   type Insight,
   type MetricType,
-  type Ryokan,
+  type Facility,
 } from "@/lib/types/database";
 import {
   Card,
@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 
 type DashboardData = {
-  ryokan: Ryokan | null;
+  facility: Facility | null;
   latestJob: ForecastJob | null;
   latestResults: ForecastResult[];
   recentInsights: Insight[];
@@ -40,7 +40,7 @@ type DashboardData = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>({
-    ryokan: null,
+    facility: null,
     latestJob: null,
     latestResults: [],
     recentInsights: [],
@@ -60,15 +60,15 @@ export default function DashboardPage() {
       }
 
       // 旅館情報
-      const { data: ryokan } = await supabase
-        .from("ryokans")
+      const { data: facility } = await supabase
+        .from("facilities")
         .select("*")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
-      if (!ryokan) {
-        setData((prev) => ({ ...prev, ryokan: null }));
+      if (!facility) {
+        setData((prev) => ({ ...prev, facility: null }));
         setLoading(false);
         return;
       }
@@ -77,7 +77,7 @@ export default function DashboardPage() {
       const { data: latestJob } = await supabase
         .from("forecast_jobs")
         .select("*")
-        .eq("ryokan_id", ryokan.id)
+        .eq("facility_id", facility.id)
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
         .limit(1)
@@ -98,7 +98,7 @@ export default function DashboardPage() {
       const { data: insights } = await supabase
         .from("insights")
         .select("*")
-        .eq("ryokan_id", ryokan.id)
+        .eq("facility_id", facility.id)
         .order("created_at", { ascending: false })
         .limit(3);
 
@@ -106,10 +106,10 @@ export default function DashboardPage() {
       const { count } = await supabase
         .from("time_series_data")
         .select("*", { count: "exact", head: true })
-        .eq("ryokan_id", ryokan.id);
+        .eq("facility_id", facility.id);
 
       setData({
-        ryokan: ryokan as Ryokan,
+        facility: facility as Facility,
         latestJob: latestJob as ForecastJob | null,
         latestResults,
         recentInsights: (insights ?? []) as Insight[],
@@ -129,7 +129,7 @@ export default function DashboardPage() {
   }
 
   // 旅館未登録
-  if (!data.ryokan) {
+  if (!data.facility) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">ダッシュボード</h1>
@@ -157,7 +157,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{data.ryokan.name}</h1>
+          <h1 className="text-2xl font-bold">{data.facility.name}</h1>
           <p className="text-muted-foreground">需要予測ダッシュボード</p>
         </div>
         {data.dataPointCount === 0 && (

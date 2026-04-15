@@ -42,18 +42,18 @@ export default function InsightsPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: ryokan } = await supabase
-        .from("ryokans")
+      const { data: facility } = await supabase
+        .from("facilities")
         .select("id")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
-      if (ryokan) {
+      if (facility) {
         const { data } = await supabase
           .from("insights")
           .select("*")
-          .eq("ryokan_id", ryokan.id)
+          .eq("facility_id", facility.id)
           .order("created_at", { ascending: false })
           .limit(20);
         if (data) setInsights(data as Insight[]);

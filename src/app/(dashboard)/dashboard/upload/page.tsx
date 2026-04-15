@@ -81,14 +81,14 @@ export default function UploadPage() {
     }
 
     // ユーザーの旅館を取得
-    const { data: ryokan } = await supabase
-      .from("ryokans")
+    const { data: facility } = await supabase
+      .from("facilities")
       .select("id")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
-    if (!ryokan) {
+    if (!facility) {
       setMessage("施設情報を先に登録してください（設定ページ）");
       setState("error");
       return;
@@ -98,14 +98,14 @@ export default function UploadPage() {
     await supabase
       .from("data_sources")
       .delete()
-      .eq("ryokan_id", ryokan.id)
+      .eq("facility_id", facility.id)
       .eq("file_name", file.name);
 
     // データソースを登録
     const { data: ds, error: dsError } = await supabase
       .from("data_sources")
       .insert({
-        ryokan_id: ryokan.id,
+        facility_id: facility.id,
         file_name: file.name,
         file_size: file.size,
         row_count: parseResult.rawRowCount,
@@ -129,7 +129,7 @@ export default function UploadPage() {
 
     // 時系列データをバッチ挿入（upsert: 重複日付は上書き）
     const records = parseResult.rows.map((row) => ({
-      ryokan_id: ryokan.id,
+      facility_id: facility.id,
       data_source_id: ds.id,
       date: row.date,
       metric_type: row.metric_type,
@@ -143,7 +143,7 @@ export default function UploadPage() {
       const { error } = await supabase
         .from("time_series_data")
         .upsert(batch, {
-          onConflict: "ryokan_id,date,metric_type",
+          onConflict: "facility_id,date,metric_type",
         });
 
       if (error) {

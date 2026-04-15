@@ -1,5 +1,5 @@
 """
-温泉旅館需要予測 - ローカルPythonワーカー
+AI需要予測 - ローカルPythonワーカー
 
 Supabaseのforecast_jobsテーブルを監視し、
 TimesFMで予測を実行して結果を書き戻す。
@@ -45,9 +45,9 @@ def fetch_queued_jobs(client):
 
 
 def fetch_historical_data(
-    client, ryokan_id: str, metric_type: str
+    client, facility_id: str, metric_type: str
 ) -> tuple[list[float], str | None, str | None]:
-    """旅館の時系列データを日付順で取得（欠損日付の補完付き）
+    """施設の時系列データを日付順で取得（欠損日付の補完付き）
 
     Returns:
         (values, start_date, end_date) -補完済みデータと日付範囲
@@ -57,7 +57,7 @@ def fetch_historical_data(
     result = (
         client.table("time_series_data")
         .select("date, value")
-        .eq("ryokan_id", ryokan_id)
+        .eq("facility_id", facility_id)
         .eq("metric_type", metric_type)
         .order("date")
         .execute()
@@ -106,7 +106,7 @@ def save_forecast_results(
         records.append(
             {
                 "job_id": job["id"],
-                "ryokan_id": job["ryokan_id"],
+                "facility_id": job["facility_id"],
                 "metric_type": job["metric_type"],
                 "forecast_date": forecast_date,
                 "point_estimate": round(point, 4),
@@ -182,7 +182,7 @@ def generate_insights(client, job: dict, forecast: dict):
     # インサイトをSupabaseに保存
     for insight in insights:
         insight["job_id"] = job["id"]
-        insight["ryokan_id"] = job["ryokan_id"]
+        insight["facility_id"] = job["facility_id"]
 
     if insights:
         client.table("insights").insert(insights).execute()
@@ -196,7 +196,7 @@ def process_job(client, engine: ForecastEngine, job: dict):
 
     job_id = job["id"]
     print(f"\n--- ジョブ処理開始: {job_id} ---")
-    print(f"  旅館: {job['ryokan_id']}, メトリクス: {job['metric_type']}, 期間: {job['horizon']}日")
+    print(f"  施設: {job['facility_id']}, メトリクス: {job['metric_type']}, 期間: {job['horizon']}日")
 
     # ステータスを running に更新
     client.table("forecast_jobs").update(
@@ -205,7 +205,7 @@ def process_job(client, engine: ForecastEngine, job: dict):
 
     # 過去データを取得（欠損日付は線形補間で自動補完）
     historical, history_start, history_end = fetch_historical_data(
-        client, job["ryokan_id"], job["metric_type"]
+        client, job["facility_id"], job["metric_type"]
     )
     if len(historical) < 10:
         raise ValueError(f"データ不足: {len(historical)}件（最低10件必要）")
@@ -239,18 +239,18 @@ def process_job(client, engine: ForecastEngine, job: dict):
                 f"{gap_days}日"
             )
 
-    # 旅館の所在地から座標を取得（天気データ用）
+    # 施設の所在地から座標を取得（天気データ用）
     from geocoding import geocode
     lat, lon = 36.6219, 138.5960  # デフォルト: 草津温泉
-    ryokan_result = (
-        client.table("ryokans")
+    facility_result = (
+        client.table("facilities")
         .select("location")
-        .eq("id", job["ryokan_id"])
+        .eq("id", job["facility_id"])
         .limit(1)
         .execute()
     )
-    if ryokan_result.data and ryokan_result.data[0].get("location"):
-        location_text = ryokan_result.data[0]["location"]
+    if facility_result.data and facility_result.data[0].get("location"):
+        location_text = facility_result.data[0]["location"]
         geo = geocode(location_text)
         if geo:
             lat, lon = geo["latitude"], geo["longitude"]
@@ -291,7 +291,7 @@ def process_backtest_job(client, engine: ForecastEngine, job: dict):
     job_id = job["id"]
     test_days = job.get("test_days") or 30
     print(f"\n--- バックテスト開始: {job_id} ---")
-    print(f"  旅館: {job['ryokan_id']}, メトリクス: {job['metric_type']}, テスト期間: {test_days}日")
+    print(f"  施設: {job['facility_id']}, メトリクス: {job['metric_type']}, テスト期間: {test_days}日")
 
     def update_progress(pct: int, msg: str):
         client.table("forecast_jobs").update(
@@ -306,25 +306,25 @@ def process_backtest_job(client, engine: ForecastEngine, job: dict):
 
     # 過去データ取得
     historical, history_start, history_end = fetch_historical_data(
-        client, job["ryokan_id"], job["metric_type"]
+        client, job["facility_id"], job["metric_type"]
     )
     if len(historical) < test_days + 30:
         raise ValueError(f"データ不足: {len(historical)}件（テスト{test_days}日+学習30日以上必要）")
 
     update_progress(5, f"過去データ: {len(historical)}件取得完了")
 
-    # 旅館の座標取得
+    # 施設の座標取得
     from geocoding import geocode
     lat, lon = 36.6219, 138.5960
-    ryokan_result = (
-        client.table("ryokans")
+    facility_result = (
+        client.table("facilities")
         .select("location")
-        .eq("id", job["ryokan_id"])
+        .eq("id", job["facility_id"])
         .limit(1)
         .execute()
     )
-    if ryokan_result.data and ryokan_result.data[0].get("location"):
-        geo = geocode(ryokan_result.data[0]["location"])
+    if facility_result.data and facility_result.data[0].get("location"):
+        geo = geocode(facility_result.data[0]["location"])
         if geo:
             lat, lon = geo["latitude"], geo["longitude"]
 
@@ -341,7 +341,7 @@ def process_backtest_job(client, engine: ForecastEngine, job: dict):
     # 結果をDBに保存
     client.table("backtest_results").insert({
         "job_id": job_id,
-        "ryokan_id": job["ryokan_id"],
+        "facility_id": job["facility_id"],
         "metric_type": job["metric_type"],
         "mape": result["mape"],
         "rmse": result["rmse"],
@@ -363,7 +363,7 @@ def process_backtest_job(client, engine: ForecastEngine, job: dict):
 
 def main():
     print("=" * 50)
-    print("温泉旅館 需要予測ワーカー 起動")
+    print("AI需要予測ワーカー 起動")
     print("=" * 50)
 
     # Supabase接続

@@ -93,8 +93,8 @@ export default function ForecastPage() {
   const [jobs, setJobs] = useState<ForecastJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<ForecastJob | null>(null);
   const [results, setResults] = useState<ForecastResult[]>([]);
-  const [ryokanId, setRyokanId] = useState<string | null>(null);
-  const [ryokanLocation, setRyokanLocation] = useState<string | null>(null);
+  const [facilityId, setFacilityId] = useState<string | null>(null);
+  const [facilityLocation, setFacilityLocation] = useState<string | null>(null);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
 
   // 旅館IDとジョブ一覧を取得
@@ -106,29 +106,29 @@ export default function ForecastPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: ryokan } = await supabase
-        .from("ryokans")
+      const { data: facility } = await supabase
+        .from("facilities")
         .select("id, location")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
-      if (ryokan) {
-        setRyokanId(ryokan.id);
-        setRyokanLocation(ryokan.location ?? null);
+      if (facility) {
+        setFacilityId(facility.id);
+        setFacilityLocation(facility.location ?? null);
 
         // 取り込み済みCSVファイル一覧
         const { data: sources } = await supabase
           .from("data_sources")
           .select("*")
-          .eq("ryokan_id", ryokan.id)
+          .eq("facility_id", facility.id)
           .order("created_at", { ascending: false });
         if (sources) setDataSources(sources as DataSource[]);
 
         const { data: jobList } = await supabase
           .from("forecast_jobs")
           .select("*")
-          .eq("ryokan_id", ryokan.id)
+          .eq("facility_id", facility.id)
           .order("created_at", { ascending: false })
           .limit(10);
         if (jobList) setJobs(jobList as ForecastJob[]);
@@ -139,7 +139,7 @@ export default function ForecastPage() {
 
   // ジョブのリアルタイム監視
   useEffect(() => {
-    if (!ryokanId) return;
+    if (!facilityId) return;
 
     const supabase = createClient();
     const channel = supabase
@@ -150,7 +150,7 @@ export default function ForecastPage() {
           event: "UPDATE",
           schema: "public",
           table: "forecast_jobs",
-          filter: `ryokan_id=eq.${ryokanId}`,
+          filter: `facility_id=eq.${facilityId}`,
         },
         (payload) => {
           const updated = payload.new as ForecastJob;
@@ -174,7 +174,7 @@ export default function ForecastPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [ryokanId, selectedJob?.id]);
+  }, [facilityId, selectedJob?.id]);
 
   const loadResults = useCallback(async (jobId: string) => {
     const supabase = createClient();
@@ -197,13 +197,13 @@ export default function ForecastPage() {
   }, []);
 
   async function handleSubmit() {
-    if (!ryokanId) return;
+    if (!facilityId) return;
     setSubmitting(true);
 
     const supabase = createClient();
     const insertPayload = jobMode === "backtest"
       ? {
-          ryokan_id: ryokanId,
+          facility_id: facilityId,
           metric_type: metricType,
           horizon: testDays,
           frequency: "daily",
@@ -211,7 +211,7 @@ export default function ForecastPage() {
           test_days: testDays,
         }
       : {
-          ryokan_id: ryokanId,
+          facility_id: facilityId,
           metric_type: metricType,
           horizon,
           frequency: "daily",
@@ -266,7 +266,7 @@ export default function ForecastPage() {
         </p>
       </div>
 
-      {!ryokanId && (
+      {!facilityId && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             施設情報を先に登録してください（設定ページ）
@@ -274,7 +274,7 @@ export default function ForecastPage() {
         </Card>
       )}
 
-      {ryokanId && (
+      {facilityId && (
         <>
           {/* 取り込み済みデータソース */}
           {dataSources.length > 0 && (
@@ -513,11 +513,11 @@ export default function ForecastPage() {
                         { label: "桜・紅葉シーズン", color: "bg-emerald-100 text-emerald-800" },
                         { label: "曜日パターン", color: "bg-purple-100 text-purple-800" },
                         { label: "季節周期", color: "bg-purple-100 text-purple-800" },
-                        ...(ryokanLocation
+                        ...(facilityLocation
                           ? [
-                              { label: `${ryokanLocation}の気温`, color: "bg-sky-100 text-sky-800" },
-                              { label: `${ryokanLocation}の降水量`, color: "bg-sky-100 text-sky-800" },
-                              { label: `${ryokanLocation}の日照時間`, color: "bg-sky-100 text-sky-800" },
+                              { label: `${facilityLocation}の気温`, color: "bg-sky-100 text-sky-800" },
+                              { label: `${facilityLocation}の降水量`, color: "bg-sky-100 text-sky-800" },
+                              { label: `${facilityLocation}の日照時間`, color: "bg-sky-100 text-sky-800" },
                             ]
                           : [
                               { label: "最高/最低気温", color: "bg-sky-100 text-sky-800" },

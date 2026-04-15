@@ -16,19 +16,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Ryokan } from "@/lib/types/database";
+import type { Facility } from "@/lib/types/database";
 
-const ryokanSchema = z.object({
+const facilitySchema = z.object({
   name: z.string().min(1, "施設名は必須です"),
   location: z.string().optional(),
   total_rooms: z.nan().transform(() => undefined).or(z.number().int().positive("1以上の数を入力")).optional(),
   room_types_json: z.string().optional(),
 });
 
-type RyokanForm = z.infer<typeof ryokanSchema>;
+type FacilityForm = z.infer<typeof facilitySchema>;
 
 export default function SettingsPage() {
-  const [ryokan, setRyokan] = useState<Ryokan | null>(null);
+  const [facility, setFacility] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -38,12 +38,12 @@ export default function SettingsPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<RyokanForm>({
-    resolver: zodResolver(ryokanSchema),
+  } = useForm<FacilityForm>({
+    resolver: zodResolver(facilitySchema),
   });
 
   useEffect(() => {
-    async function loadRyokan() {
+    async function loadFacility() {
       const supabase = createClient();
       const {
         data: { user },
@@ -51,14 +51,14 @@ export default function SettingsPage() {
       if (!user) return;
 
       const { data } = await supabase
-        .from("ryokans")
+        .from("facilities")
         .select("*")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
       if (data) {
-        setRyokan(data as Ryokan);
+        setFacility(data as Facility);
         reset({
           name: data.name,
           location: data.location ?? "",
@@ -68,10 +68,10 @@ export default function SettingsPage() {
       }
       setLoading(false);
     }
-    loadRyokan();
+    loadFacility();
   }, [reset]);
 
-  async function onSubmit(values: RyokanForm) {
+  async function onSubmit(values: FacilityForm) {
     setSaving(true);
     setMessage(null);
 
@@ -100,11 +100,11 @@ export default function SettingsPage() {
       user_id: user.id,
     };
 
-    if (ryokan) {
+    if (facility) {
       const { error } = await supabase
-        .from("ryokans")
+        .from("facilities")
         .update(payload)
-        .eq("id", ryokan.id);
+        .eq("id", facility.id);
       if (error) {
         setMessage(`エラー: ${error.message}`);
       } else {
@@ -112,14 +112,14 @@ export default function SettingsPage() {
       }
     } else {
       const { data, error } = await supabase
-        .from("ryokans")
+        .from("facilities")
         .insert(payload)
         .select()
         .single();
       if (error) {
         setMessage(`エラー: ${error.message}`);
       } else {
-        setRyokan(data as Ryokan);
+        setFacility(data as Facility);
         setMessage("施設情報を登録しました");
       }
     }
@@ -214,7 +214,7 @@ export default function SettingsPage() {
             )}
 
             <Button type="submit" disabled={saving}>
-              {saving ? "保存中..." : ryokan ? "更新" : "登録"}
+              {saving ? "保存中..." : facility ? "更新" : "登録"}
             </Button>
           </form>
         </CardContent>

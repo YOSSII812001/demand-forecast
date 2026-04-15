@@ -7,7 +7,7 @@ export type Profile = {
   updated_at: string;
 };
 
-export type Ryokan = {
+export type Facility = {
   id: string;
   user_id: string;
   name: string;
@@ -27,7 +27,7 @@ export type RoomType = {
 
 export type DataSource = {
   id: string;
-  ryokan_id: string;
+  facility_id: string;
   file_name: string;
   file_size: number | null;
   row_count: number | null;
@@ -53,7 +53,7 @@ export type MetricType =
 
 export type TimeSeriesData = {
   id: number;
-  ryokan_id: string;
+  facility_id: string;
   data_source_id: string | null;
   date: string;
   metric_type: MetricType;
@@ -67,7 +67,7 @@ export type ForecastJobType = "forecast" | "backtest";
 
 export type ForecastJob = {
   id: string;
-  ryokan_id: string;
+  facility_id: string;
   metric_type: MetricType;
   horizon: number;
   frequency: "daily" | "weekly";
@@ -95,7 +95,7 @@ export type BacktestDailyResult = {
 export type BacktestResult = {
   id: string;
   job_id: string;
-  ryokan_id: string;
+  facility_id: string;
   metric_type: MetricType;
   mape: number;
   rmse: number;
@@ -108,7 +108,7 @@ export type BacktestResult = {
 export type ForecastResult = {
   id: string;
   job_id: string;
-  ryokan_id: string;
+  facility_id: string;
   metric_type: MetricType;
   forecast_date: string;
   point_estimate: number;
@@ -126,7 +126,7 @@ export type InsightCategory =
 export type Insight = {
   id: string;
   job_id: string;
-  ryokan_id: string;
+  facility_id: string;
   category: InsightCategory;
   title: string;
   description: string;
