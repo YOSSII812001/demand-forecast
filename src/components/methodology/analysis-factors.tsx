@@ -28,7 +28,7 @@ const ANALYSIS_SECTIONS = [
     badge: "事前学習済み",
     badgeColor: "bg-emerald-100 text-emerald-800",
     description:
-      "TimesFMは以下の大規模データで事前学習されており、温泉旅館のような季節性の強い業態のパターンを自動的に捉えます。",
+      "TimesFMは以下の大規模データで事前学習されており、季節性の強い業態のパターンを自動的に捉えます。",
     items: [
       "Google Trends（検索トレンドの季節性・周期性）",
       "Wikipedia閲覧数（イベント・季節による変動パターン）",
@@ -71,10 +71,10 @@ const ANALYSIS_SECTIONS = [
     badge: "自動適用中",
     badgeColor: "bg-emerald-100 text-emerald-800",
     description:
-      "Open-Meteo API（無料・APIキー不要）を通じて、旅館所在地の気象データを自動取得し共変量として注入しています。",
+      "Open-Meteo API（無料・APIキー不要）を通じて、施設所在地の気象データを自動取得し共変量として注入しています。",
     items: [
-      "最高気温・最低気温（℃） — 冬の温泉需要、夏の避暑需要と相関",
-      "降水量（mm） — 屋外観光地との競合関係、雨天時の温泉需要増",
+      "最高気温・最低気温（℃） — 季節需要（冬の暖房需要、夏の冷房需要等）と相関",
+      "降水量（mm） — 天候による来客数変動と相関",
       "日照時間（h） — 行楽需要・屋外イベントとの相関",
       "過去データ: Open-Meteo Archive API（1940年〜）",
       "未来データ: 16日先の天気予報を自動取得、16日超は過去平均で補完",

@@ -89,7 +89,7 @@ export default function UploadPage() {
       .maybeSingle();
 
     if (!ryokan) {
-      setMessage("旅館情報を先に登録してください（設定ページ）");
+      setMessage("施設情報を先に登録してください（設定ページ）");
       setState("error");
       return;
     }

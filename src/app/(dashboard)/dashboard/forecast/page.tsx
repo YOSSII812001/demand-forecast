@@ -269,7 +269,7 @@ export default function ForecastPage() {
       {!ryokanId && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            旅館情報を先に登録してください（設定ページ）
+            施設情報を先に登録してください（設定ページ）
           </CardContent>
         </Card>
       )}

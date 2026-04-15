@@ -12,9 +12,9 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "温泉旅館 需要予測 | ryokan-forecast",
+  title: "AI需要予測 | demand-forecast",
   description:
-    "TimesFMを活用した温泉旅館向けAI需要予測システム。稼働率・宿泊客数・売上を30〜90日先まで予測します。",
+    "TimesFMを活用したAI需要予測システム。稼働率・来客数・売上を30〜90日先まで予測します。",
 };
 
 export default function RootLayout({

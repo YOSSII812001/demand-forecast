@@ -8,13 +8,13 @@ export default function Home() {
         {/* ヒーロー */}
         <div className="space-y-4">
           <h1 className="text-5xl font-bold tracking-tight text-foreground">
-            温泉旅館の
-            <span className="text-copper">需要予測</span>
+            かんたん
+            <span className="text-copper">AI需要予測</span>
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            過去の予約データから、AIが30〜90日先の稼働率・宿泊客数・売上を予測。
+            過去の実績データから、AIが30〜90日先の稼働率・来客数・売上を予測。
             <br />
-            人員配置や食材発注の最適化を支援します。
+            人員配置やリソース最適化を支援します。
           </p>
         </div>
 

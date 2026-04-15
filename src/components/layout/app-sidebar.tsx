@@ -40,7 +40,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-copper" />
-          <span className="text-lg font-semibold">旅館予測</span>
+          <span className="text-lg font-semibold">需要予測</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>

@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title ryokan-forecast 停止
+title demand-forecast 停止
 
 echo ============================================
-echo   ryokan-forecast 開発環境 停止
+echo   demand-forecast 開発環境 停止
 echo ============================================
 echo.
 

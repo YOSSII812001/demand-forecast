@@ -19,7 +19,7 @@ import {
 import type { Ryokan } from "@/lib/types/database";
 
 const ryokanSchema = z.object({
-  name: z.string().min(1, "旅館名は必須です"),
+  name: z.string().min(1, "施設名は必須です"),
   location: z.string().optional(),
   total_rooms: z.nan().transform(() => undefined).or(z.number().int().positive("1以上の数を入力")).optional(),
   room_types_json: z.string().optional(),
@@ -108,7 +108,7 @@ export default function SettingsPage() {
       if (error) {
         setMessage(`エラー: ${error.message}`);
       } else {
-        setMessage("旅館情報を更新しました");
+        setMessage("施設情報を更新しました");
       }
     } else {
       const { data, error } = await supabase
@@ -120,7 +120,7 @@ export default function SettingsPage() {
         setMessage(`エラー: ${error.message}`);
       } else {
         setRyokan(data as Ryokan);
-        setMessage("旅館情報を登録しました");
+        setMessage("施設情報を登録しました");
       }
     }
     setSaving(false);
@@ -138,23 +138,23 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">設定</h1>
-        <p className="text-muted-foreground">旅館情報の登録・編集</p>
+        <p className="text-muted-foreground">施設情報の登録・編集</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>旅館情報</CardTitle>
+          <CardTitle>施設情報</CardTitle>
           <CardDescription>
-            旅館名、所在地、客室数などの基本情報を設定します
+            施設名、所在地、客室数などの基本情報を設定します
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">旅館名 *</Label>
+              <Label htmlFor="name">施設名 *</Label>
               <Input
                 id="name"
-                placeholder="例: 湯の花温泉旅館"
+                placeholder="例: 〇〇ホテル・旅館・店舗"
                 {...register("name")}
               />
               {errors.name && (

@@ -62,7 +62,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">ログイン</CardTitle>
             <CardDescription>
-              温泉旅館 需要予測システムにログイン
+              AI需要予測システムにログイン
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -72,7 +72,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="example@ryokan.jp"
+                  placeholder="example@company.jp"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

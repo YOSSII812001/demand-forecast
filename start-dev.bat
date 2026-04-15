@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title ryokan-forecast Dev Environment
+title demand-forecast Dev Environment
 
 echo ============================================
-echo   ryokan-forecast 開発環境 一括起動
+echo   demand-forecast 開発環境 一括起動
 echo ============================================
 echo.
 
@@ -31,13 +31,13 @@ echo [OK] Supabase (Studio: http://127.0.0.1:54423)
 :: Next.js devサーバー（新しいウィンドウ）
 echo.
 echo [2/3] Next.js dev サーバーを起動中...
-start "ryokan-forecast: Next.js" cmd /k "cd /d %~dp0 && npm run dev"
+start "demand-forecast: Next.js" cmd /k "cd /d %~dp0 && npm run dev"
 echo [OK] Next.js (http://localhost:3000)
 
 :: Pythonワーカー（新しいウィンドウ）
 echo.
 echo [3/3] Python ワーカーを起動中...
-start "ryokan-forecast: Worker" cmd /k "cd /d %~dp0worker && .venv\Scripts\activate && python worker.py"
+start "demand-forecast: Worker" cmd /k "cd /d %~dp0worker && .venv\Scripts\activate && python worker.py"
 echo [OK] Python Worker
 
 echo.
@@ -47,7 +47,7 @@ echo ============================================
 echo.
 echo   Supabase Studio : http://127.0.0.1:54423
 echo   Next.js         : http://localhost:3000
-echo   テストアカウント : test@ryokan.jp / password123
+echo   テストアカウント : test@company.jp / password123
 echo.
 echo   停止: 各ウィンドウで Ctrl+C、その後 npx supabase stop
 echo ============================================

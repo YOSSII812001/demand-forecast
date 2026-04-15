@@ -1,11 +1,11 @@
 ## スキル連携
 @~/.claude/skills/ryokan-forecast/SKILL.md
 
-# ryokan-forecast - 温泉旅館 需要予測システム
+# demand-forecast - AI需要予測システム
 
 ## 概要
-TimesFM（Google OSS時系列予測AI）を活用した温泉旅館向け需要予測システム。
-過去の予約・稼働データから30〜90日先の稼働率・宿泊客数・売上を予測する。
+TimesFM（Google OSS時系列予測AI）を活用したAI需要予測システム。
+過去の実績データから30〜90日先の稼働率・来客数・売上を予測する。
 
 ## アーキテクチャ
 - **フロントエンド**: Next.js 16 App Router + shadcn/ui v4 + Tailwind CSS v4
@@ -61,10 +61,10 @@ supabase/migrations/ # DBマイグレーション
 ```
 
 ## デザイン
-MUJI DESIGN.md 準拠 + 温泉旅館アクセント
+MUJI DESIGN.md 準拠 + 銅色アクセント
 - 背景: 白 (#fff) — MUJI標準
 - テキスト: 暗グレー (#3c3c43) — MUJI（純黒ではない）
-- プライマリ: 銅色 (#b87333) — 温泉旅館アクセント
+- プライマリ: 銅色 (#b87333) — アクセントカラー
 - セカンダリ/ミュート: #f5f5f5 — MUJI Background Secondary
 - アクセント: きなり色 (#f4eede) — MUJIきなり
 - ボーダー: #d8d8d9 — MUJI Border

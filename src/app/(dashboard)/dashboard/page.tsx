@@ -136,12 +136,12 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="py-12 text-center space-y-4">
             <Hotel className="h-12 w-12 text-muted-foreground mx-auto" />
-            <p className="text-lg font-medium">旅館情報を登録しましょう</p>
+            <p className="text-lg font-medium">施設情報を登録しましょう</p>
             <p className="text-muted-foreground">
-              まず旅館の基本情報を登録し、次に過去データをアップロードして予測を始めます。
+              まず施設の基本情報を登録し、次に過去データをアップロードして予測を始めます。
             </p>
             <Button render={<Link href="/dashboard/settings" />}>
-              旅館情報を登録
+              施設情報を登録
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </CardContent>

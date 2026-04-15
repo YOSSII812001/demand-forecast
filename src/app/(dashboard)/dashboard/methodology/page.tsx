@@ -85,7 +85,7 @@ export default function MethodologyPage() {
                 <p className="font-medium">規則的な周期パターン</p>
                 <p className="text-xs text-muted-foreground">
                   曜日効果、季節変動、年次トレンドなど繰り返しのあるパターンは高精度で予測します。
-                  温泉旅館の稼働パターンはこの特性に強く合致します。
+                  宿泊施設や店舗の稼働パターンはこの特性に強く合致します。
                 </p>
               </div>
             </div>
